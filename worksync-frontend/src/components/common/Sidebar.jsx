@@ -24,10 +24,7 @@ const NAV_ITEMS = [
   { key: 'projects',  label: 'Projects',  Icon: IconProjects  },
   { key: 'tasks',     label: 'Tasks',     Icon: IconTasks     },
   { key: 'team',      label: 'Team',      Icon: IconTeam      },
-]
-
-const BOTTOM_NAV_ITEMS = [
-  { key: 'settings', label: 'Settings', Icon: IconSettings },
+  { key: 'settings',  label: 'Settings',  Icon: IconSettings  },
 ]
 
 export default function Sidebar({ collapsed, onToggle, activePage, onNavigate }) {
@@ -60,30 +57,8 @@ export default function Sidebar({ collapsed, onToggle, activePage, onNavigate })
         </div>
       </nav>
 
-      {/* Spacer pushes settings to bottom */}
+      {/* Spacer pushes toggle to bottom */}
       <div style={{ flex: 1 }} />
-
-      {/* Settings — anchored to bottom, separated from primary nav */}
-      <div
-        className="sidebar-nav"
-        style={{
-          paddingBottom: 'var(--space-1)',
-          borderTop: '1px solid var(--sidebar-border)',
-          paddingTop: 'var(--space-2)',
-        }}
-      >
-        {BOTTOM_NAV_ITEMS.map(({ key, label, Icon }) => (
-          <NavItem
-            key={key}
-            navKey={key}
-            label={label}
-            Icon={Icon}
-            collapsed={collapsed}
-            active={activePage === key}
-            onNavigate={onNavigate}
-          />
-        ))}
-      </div>
 
       {/* Collapse / expand toggle */}
       <div className="sidebar-toggle">
