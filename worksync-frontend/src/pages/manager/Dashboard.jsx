@@ -25,8 +25,8 @@ const STATS = [
     change: '+2 this month',
     positive: true,
     icon: IconProjects,
-    iconBg: '#eef2ff',
-    iconColor: '#4f46e5',
+    iconBgVar: '--color-primary-50',
+    iconColorVar: '--color-primary-600',
   },
   {
     label: 'Open Tasks',
@@ -34,8 +34,8 @@ const STATS = [
     change: '8 due today',
     positive: null,
     icon: IconTasks,
-    iconBg: '#eff6ff',
-    iconColor: '#1d4ed8',
+    iconBgVar: '--color-warning-50',
+    iconColorVar: '--color-warning-600',
   },
   {
     label: 'Team Members',
@@ -43,8 +43,8 @@ const STATS = [
     change: '+1 this week',
     positive: true,
     icon: IconTeam,
-    iconBg: '#f0fdf4',
-    iconColor: '#15803d',
+    iconBgVar: '--color-success-50',
+    iconColorVar: '--color-success-600',
   },
   {
     label: 'Completed Tasks',
@@ -52,8 +52,8 @@ const STATS = [
     change: '+23 this week',
     positive: true,
     icon: IconProgress,
-    iconBg: '#faf5ff',
-    iconColor: '#7e22ce',
+    iconBgVar: '--color-primary-100',
+    iconColorVar: '--color-primary-700',
   },
 ]
 
@@ -144,11 +144,11 @@ const PROJECTS = [
 ]
 
 const TEAM_MEMBERS = [
-  { id: 1, name: 'Alex Kim',     role: 'Frontend Dev',   initials: 'AK', tasks: 8,  color: '#4f46e5' },
-  { id: 2, name: 'Jordan Mills', role: 'UX Designer',    initials: 'JM', tasks: 5,  color: '#0284c7' },
-  { id: 3, name: 'Sam Torres',   role: 'Backend Dev',    initials: 'ST', tasks: 11, color: '#15803d' },
-  { id: 4, name: 'Riley Park',   role: 'QA Engineer',    initials: 'RP', tasks: 4,  color: '#7e22ce' },
-  { id: 5, name: 'Casey Lee',    role: 'DevOps',         initials: 'CL', tasks: 6,  color: '#b45309' },
+  { id: 1, name: 'Alex Kim',     role: 'Frontend Dev',   initials: 'AK', tasks: 8  },
+  { id: 2, name: 'Jordan Mills', role: 'UX Designer',    initials: 'JM', tasks: 5  },
+  { id: 3, name: 'Sam Torres',   role: 'Backend Dev',    initials: 'ST', tasks: 11 },
+  { id: 4, name: 'Riley Park',   role: 'QA Engineer',    initials: 'RP', tasks: 4  },
+  { id: 5, name: 'Casey Lee',    role: 'DevOps',         initials: 'CL', tasks: 6  },
 ]
 
 /* ── Status helpers ────────────────────────────────────────── */
@@ -275,15 +275,17 @@ export default function Dashboard() {
 
 /* ── Sub-components ────────────────────────────────────────── */
 
-function StatCard({ label, value, change, positive, icon: Icon, iconBg, iconColor }) {
+function StatCard({ label, value, change, positive, icon: Icon, iconBgVar, iconColorVar }) {
   return (
     <div className="stat-card">
       <div
         className="stat-card-icon"
-        style={{ backgroundColor: iconBg }}
+        style={{
+          backgroundColor: `var(${iconBgVar})`,
+        }}
         aria-hidden="true"
       >
-        <Icon size={20} style={{ color: iconColor }} />
+        <Icon size={20} style={{ color: `var(${iconColorVar})` }} />
       </div>
       <div>
         <div className="stat-card-value">{value}</div>
@@ -386,7 +388,6 @@ function MemberCard({ member }) {
     <div className="member-card">
       <div
         className="avatar avatar-md"
-        style={{ backgroundColor: member.color + '22', color: member.color }}
         aria-hidden="true"
       >
         {member.initials}
