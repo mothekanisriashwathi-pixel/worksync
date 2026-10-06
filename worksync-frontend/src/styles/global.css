@@ -2324,3 +2324,40 @@ hr {
 .opacity-50   { opacity: 0.5; }
 .cursor-pointer { cursor: pointer; }
 .pointer-none   { pointer-events: none; }
+
+/* ============================================================
+   31. DASHBOARD RESPONSIVE OVERRIDES
+   ============================================================ */
+
+/* Stats grid: 4 → 2 → 1 columns */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-6);
+}
+
+@media (max-width: 1100px) {
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Tasks + projects side-by-side → stacked */
+.dashboard-main-grid {
+  display: grid;
+  grid-template-columns: 1fr 380px;
+  gap: var(--space-6);
+  align-items: start;
+}
+
+@media (max-width: 1100px) {
+  .dashboard-main-grid {
+    grid-template-columns: 1fr;
+  }
+}
