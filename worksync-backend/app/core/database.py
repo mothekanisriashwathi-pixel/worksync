@@ -1,0 +1,20 @@
+# SQLAlchemy engine and session setup.
+# Import `get_db` as a FastAPI dependency in route handlers.
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker, declarative_base
+from app.core.config import settings
+
+engine = create_engine(settings.DATABASE_URL)
+
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+Base = declarative_base()
+
+
+def get_db():
+    """Yields a database session and closes it after the request."""
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()

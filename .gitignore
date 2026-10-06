@@ -1,0 +1,36 @@
+# -------------------------------------------------------
+# WorkSync — Root .gitignore
+# -------------------------------------------------------
+
+# === SECRETS — never commit these ===
+.env
+*.env
+!*.env.example
+
+# === Python / Backend ===
+worksync-backend/venv/
+worksync-backend/__pycache__/
+worksync-backend/**/__pycache__/
+worksync-backend/**/*.pyc
+worksync-backend/**/*.pyo
+worksync-backend/.pytest_cache/
+worksync-backend/*.egg-info/
+worksync-backend/dist/
+worksync-backend/build/
+
+# Uploaded files (local storage, not for version control)
+worksync-backend/uploads/
+
+# === Node / Frontend ===
+worksync-frontend/node_modules/
+worksync-frontend/dist/
+worksync-frontend/.vite/
+
+# === OS / Editor ===
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+*.swp
+*.swo
