@@ -8,34 +8,39 @@
 
   /* ----------------------------------------------------------
      BRAND COLORS
-     Primary: indigo-blue — professional, calm, trustworthy
+     Primary: Purple / Lavender / Cream
+     #6949D0  Primary Purple
+     #341F60  Deep Violet
+     #E1C9FF  Light Lavender
+     #FFF9EF  Soft Cream
      ---------------------------------------------------------- */
-  --color-primary-50:  #eef2ff;
-  --color-primary-100: #e0e7ff;
-  --color-primary-200: #c7d2fe;
-  --color-primary-300: #a5b4fc;
-  --color-primary-400: #818cf8;
-  --color-primary-500: #6366f1;   /* Primary default */
-  --color-primary-600: #4f46e5;   /* Primary hover */
-  --color-primary-700: #4338ca;   /* Primary active */
-  --color-primary-800: #3730a3;
-  --color-primary-900: #312e81;
+  --color-primary-50:  #f5f0ff;   /* Lightest lavender tint */
+  --color-primary-100: #ede3ff;   /* Very light lavender */
+  --color-primary-200: #e1c9ff;   /* Light lavender (brand token) */
+  --color-primary-300: #c9a6fa;   /* Mid lavender */
+  --color-primary-400: #a87df5;   /* Soft purple */
+  --color-primary-500: #6949d0;   /* Primary purple (brand default) */
+  --color-primary-600: #5a3ab8;   /* Primary hover */
+  --color-primary-700: #4a2e9e;   /* Primary active */
+  --color-primary-800: #341f60;   /* Deep violet (brand dark) */
+  --color-primary-900: #210f45;   /* Deepest violet */
 
   /* ----------------------------------------------------------
-     NEUTRAL PALETTE (Slate)
+     NEUTRAL PALETTE (Violet-tinted warm neutrals)
      Backgrounds, borders, text, surfaces
+     Warmer than pure slate to harmonize with the purple brand.
      ---------------------------------------------------------- */
   --color-neutral-0:   #ffffff;
-  --color-neutral-50:  #f8fafc;   /* Page background */
-  --color-neutral-100: #f1f5f9;   /* Subtle background */
-  --color-neutral-200: #e2e8f0;   /* Border default */
-  --color-neutral-300: #cbd5e1;   /* Border strong */
-  --color-neutral-400: #94a3b8;   /* Text disabled / placeholder */
-  --color-neutral-500: #64748b;   /* Text secondary */
-  --color-neutral-600: #475569;   /* Text body */
-  --color-neutral-700: #334155;   /* Text strong */
-  --color-neutral-800: #1e293b;   /* Text heading */
-  --color-neutral-900: #0f172a;   /* Text emphasis */
+  --color-neutral-50:  #fdf9f7;   /* Warm off-white (near cream) */
+  --color-neutral-100: #f5f0f0;   /* Subtle warm background */
+  --color-neutral-200: #e8e0eb;   /* Border default — lavender-tinted */
+  --color-neutral-300: #d0c6d8;   /* Border strong */
+  --color-neutral-400: #9e8faa;   /* Text disabled / placeholder */
+  --color-neutral-500: #6e5f7a;   /* Text secondary */
+  --color-neutral-600: #4e4059;   /* Text body */
+  --color-neutral-700: #342944;   /* Text strong */
+  --color-neutral-800: #1e1230;   /* Text heading — deep violet-black */
+  --color-neutral-900: #100a1e;   /* Text emphasis */
 
   /* ----------------------------------------------------------
      SEMANTIC COLORS
@@ -72,17 +77,17 @@
   /* ----------------------------------------------------------
      TASK STATUS COLORS
      ---------------------------------------------------------- */
-  --status-todo-bg:         #f1f5f9;
-  --status-todo-text:       #475569;
-  --status-todo-border:     #cbd5e1;
+  --status-todo-bg:         #f5f0ff;   /* Lightest lavender */
+  --status-todo-text:       #4e4059;   /* Neutral violet-gray */
+  --status-todo-border:     #d0c6d8;
 
-  --status-inprogress-bg:   #eff6ff;
-  --status-inprogress-text: #1d4ed8;
-  --status-inprogress-border: #bfdbfe;
+  --status-inprogress-bg:   #ede3ff;   /* Light lavender */
+  --status-inprogress-text: #4a2e9e;   /* Primary active purple */
+  --status-inprogress-border: #c9a6fa;
 
   --status-inreview-bg:     #faf5ff;
-  --status-inreview-text:   #7e22ce;
-  --status-inreview-border: #e9d5ff;
+  --status-inreview-text:   #341f60;   /* Deep violet */
+  --status-inreview-border: #e1c9ff;   /* Light lavender */
 
   --status-completed-bg:    #f0fdf4;
   --status-completed-text:  #15803d;
@@ -114,23 +119,23 @@
   /* ----------------------------------------------------------
      SURFACES
      ---------------------------------------------------------- */
-  --surface-page:      var(--color-neutral-50);   /* Page background */
-  --surface-card:      var(--color-neutral-0);    /* Card/panel background */
-  --surface-raised:    var(--color-neutral-0);    /* Modal, dropdown */
-  --surface-sunken:    var(--color-neutral-100);  /* Input background */
-  --surface-overlay:   rgba(15, 23, 42, 0.4);    /* Modal backdrop */
+  --surface-page:      #fff9ef;                  /* Soft cream page background */
+  --surface-card:      var(--color-neutral-0);   /* White card/panel */
+  --surface-raised:    var(--color-neutral-0);   /* Modal, dropdown */
+  --surface-sunken:    var(--color-primary-50);  /* Input bg — lightest lavender */
+  --surface-overlay:   rgba(52, 31, 96, 0.45);  /* Deep violet modal backdrop */
 
   /* ----------------------------------------------------------
      SIDEBAR
      ---------------------------------------------------------- */
-  --sidebar-bg:             #1e293b;   /* Dark slate */
-  --sidebar-text:           #94a3b8;
+  --sidebar-bg:             #1e1230;   /* Deep violet-black */
+  --sidebar-text:           #9e8faa;   /* Muted lavender-gray */
   --sidebar-text-active:    #ffffff;
-  --sidebar-icon:           #64748b;
-  --sidebar-icon-active:    #818cf8;
-  --sidebar-item-hover-bg:  #334155;
-  --sidebar-item-active-bg: rgba(99, 102, 241, 0.15);
-  --sidebar-border:         #334155;
+  --sidebar-icon:           #6e5f7a;   /* Muted violet */
+  --sidebar-icon-active:    #c9a6fa;   /* Soft purple active */
+  --sidebar-item-hover-bg:  #2e1f46;   /* Slightly lighter deep violet */
+  --sidebar-item-active-bg: rgba(105, 73, 208, 0.18); /* Primary purple tint */
+  --sidebar-border:         #2e1f46;
   --sidebar-width-expanded: 240px;
   --sidebar-width-collapsed: 64px;
 
@@ -328,7 +333,7 @@
      FOCUS RING
      Consistent keyboard focus across all interactive elements
      ---------------------------------------------------------- */
-  --focus-ring: 0 0 0 3px rgba(99, 102, 241, 0.3);
+  --focus-ring: 0 0 0 3px rgba(105, 73, 208, 0.3);
 }
 
 /* ----------------------------------------------------------
