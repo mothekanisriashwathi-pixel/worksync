@@ -5,12 +5,9 @@ import {
   IconNotifications,
   IconProfile,
   IconSettings,
-  IconAppearance,
   IconHelp,
   IconLogout,
   IconClose,
-  IconCheck,
-  IconTextSize,
 } from './WorkSyncIcons'
 
 /**
@@ -19,19 +16,15 @@ import {
  * Top-right: search · notifications · user avatar → profile menu
  * User profile is NEVER in the sidebar.
  *
+ * Text size / Appearance is accessible via Account Settings → Appearance,
+ * not from this dropdown.
+ *
  * Props:
  *   pageTitle       {string}
  *   onMenuClick     {function}  — opens mobile nav drawer
  *   textSize        {string}    — 'small'|'default'|'large'|'xlarge'
- *   onTextSizeChange{function}  — called with new size string
+ *   onTextSizeChange{function}  — passed through; used by Settings page
  */
-
-const TEXT_SIZE_OPTIONS = [
-  { key: 'small',   label: 'Small' },
-  { key: 'default', label: 'Default' },
-  { key: 'large',   label: 'Large' },
-  { key: 'xlarge',  label: 'Extra Large' },
-]
 
 const DEMO_NOTIFICATIONS = [
   { id: 1, message: 'Alex assigned you a new task: "Update API docs"', time: '2 min ago', unread: true },
@@ -226,50 +219,6 @@ export default function Header({ pageTitle, onMenuClick, textSize, onTextSizeCha
                   <IconSettings size={16} />
                   Account Settings
                 </button>
-
-                {/* Appearance / text size submenu inline */}
-                <div className="profile-menu-item" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: 'var(--space-2)', cursor: 'default' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
-                    <IconAppearance size={16} />
-                    <span>Text Size</span>
-                  </div>
-                  <div style={{
-                    display: 'flex',
-                    gap: 'var(--space-1)',
-                    paddingLeft: 'calc(16px + var(--space-3))',
-                    flexWrap: 'wrap',
-                  }}>
-                    {TEXT_SIZE_OPTIONS.map(opt => (
-                      <button
-                        key={opt.key}
-                        onClick={() => onTextSizeChange(opt.key)}
-                        role="menuitemradio"
-                        aria-checked={textSize === opt.key}
-                        style={{
-                          padding: '3px var(--space-2)',
-                          borderRadius: 'var(--radius-sm)',
-                          fontSize: 'var(--fs-xs)',
-                          fontWeight: 'var(--font-medium)',
-                          border: '1px solid',
-                          cursor: 'pointer',
-                          transition: 'all var(--transition-fast)',
-                          backgroundColor: textSize === opt.key
-                            ? 'var(--color-primary-500)'
-                            : 'var(--surface-sunken)',
-                          borderColor: textSize === opt.key
-                            ? 'var(--color-primary-500)'
-                            : 'var(--border-color)',
-                          color: textSize === opt.key
-                            ? 'white'
-                            : 'var(--text-secondary)',
-                        }}
-                      >
-                        {opt.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
                 <button className="profile-menu-item" role="menuitem">
                   <IconHelp size={16} />
                   Help &amp; Support

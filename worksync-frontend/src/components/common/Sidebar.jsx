@@ -63,8 +63,15 @@ export default function Sidebar({ collapsed, onToggle, activePage, onNavigate })
       {/* Spacer pushes settings to bottom */}
       <div style={{ flex: 1 }} />
 
-      {/* Settings at bottom of sidebar (not the user profile) */}
-      <div className="sidebar-nav" style={{ paddingBottom: 'var(--space-2)' }}>
+      {/* Settings — anchored to bottom, separated from primary nav */}
+      <div
+        className="sidebar-nav"
+        style={{
+          paddingBottom: 'var(--space-1)',
+          borderTop: '1px solid var(--sidebar-border)',
+          paddingTop: 'var(--space-2)',
+        }}
+      >
         {BOTTOM_NAV_ITEMS.map(({ key, label, Icon }) => (
           <NavItem
             key={key}
