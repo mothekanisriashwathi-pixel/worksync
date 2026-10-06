@@ -2361,3 +2361,21 @@ hr {
     grid-template-columns: 1fr;
   }
 }
+
+/* ============================================================
+   32. DASHBOARD — ACTIVITY FEED RESPONSIVE
+   On desktop/tablet: activity lives inside the left column.
+   On mobile: it's visible stacked below the task list (already
+   the natural flow). No extra hiding needed — the class is a
+   hook for future targeted overrides.
+   ============================================================ */
+
+/* ProjectProgress hover is handled via inline JS; no extra CSS needed */
+
+/* Task card responsive: hide badges on very small screens to prevent
+   overflow, show status dot as the only indicator */
+@media (max-width: 480px) {
+  .task-card .badge {
+    display: none;
+  }
+}
