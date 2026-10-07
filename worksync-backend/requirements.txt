@@ -13,6 +13,9 @@ alembic==1.13.3
 # Authentication
 python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4
+# bcrypt 4.x is the last series compatible with passlib 1.7.4.
+# bcrypt 5+ removed the __about__ attribute passlib uses for version detection.
+bcrypt==4.0.1
 
 # Environment variables
 python-dotenv==1.0.1
