@@ -368,7 +368,7 @@ const DEMO_ACTIVITY = [
 const ROLE_CONFIG = {
   manager: {
     greeting: (name) => `Good morning, ${name} — here's your team's progress today.`,
-    action: { label: '+ New Task', key: 'new_task' },
+    action: { label: 'New Task', key: 'new_task' },
     showReviewQueue: true,
     showTeamTasks: true,
     showProjects: true,
