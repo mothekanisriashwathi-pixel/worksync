@@ -8,7 +8,13 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.routers import auth as auth_router
-
+from app.routers import user as user_router
+from app.routers import team as team_router
+from app.routers import project as project_router
+from app.routers import task as task_router
+from app.routers import comment as comment_router
+from app.routers import submission as submission_router
+from app.routers import notification as notification_router
 # ---------------------------------------------------------------------------
 # Application
 # ---------------------------------------------------------------------------
@@ -43,7 +49,13 @@ app.add_middleware(
 # ---------------------------------------------------------------------------
 
 app.include_router(auth_router.router)
-
+app.include_router(user_router.router)
+app.include_router(team_router.router)
+app.include_router(project_router.router)
+app.include_router(task_router.router)
+app.include_router(comment_router.router)
+app.include_router(submission_router.router)
+app.include_router(notification_router.router)
 # ---------------------------------------------------------------------------
 # Health check
 # ---------------------------------------------------------------------------
