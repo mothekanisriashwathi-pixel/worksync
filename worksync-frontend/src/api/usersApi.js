@@ -1,2 +1,4 @@
-// User management API calls.
-// Implemented in Phase 4 (User & Team Management).
+import api from './axiosInstance'
+
+// ADMIN only — callers handle 403
+export const getUsers = () => api.get('/users').then(r => r.data)
