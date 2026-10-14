@@ -22,9 +22,15 @@ worksync-backend/build/
 worksync-backend/uploads/
 
 # === Node / Frontend ===
+node_modules/
 worksync-frontend/node_modules/
 worksync-frontend/dist/
 worksync-frontend/.vite/
+
+# === SQLite / Local DB ===
+*.db
+*.sqlite
+*.sqlite3
 
 # === OS / Editor ===
 .DS_Store
