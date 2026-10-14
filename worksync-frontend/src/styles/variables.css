@@ -1,108 +1,112 @@
 /* ============================================================
    WorkSync — Design Tokens
-   All CSS custom properties for the entire application.
-   Import this file first in global.css.
+   Theme: FinTech Midnight
+   Palette:
+     #1A1A2E  Midnight Black / Deep Navy
+     #2E3A4B  Slate Navy / Surface Card
+     #26C6DA  Electric Cyan (Primary Brand Accent)
+     #B0BEC5  Platinum Slate Gray
+   Font: Space Grotesk
    ============================================================ */
 
 :root {
 
   /* ----------------------------------------------------------
-     BRAND COLORS
-     Primary: Purple / Lavender / Cream
-     #6949D0  Primary Purple
-     #341F60  Deep Violet
-     #E1C9FF  Light Lavender
-     #FFF9EF  Soft Cream
+     BRAND COLORS — FinTech Midnight
      ---------------------------------------------------------- */
-  --color-primary-50:  #f5f0ff;   /* Lightest lavender tint */
-  --color-primary-100: #EDE3FF;   /* Very light lavender */
-  --color-primary-200: #e1c9ff;   /* Light lavender (brand token) */
-  --color-primary-300: #c9a6fa;   /* Mid lavender */
-  --color-primary-400: #a87df5;   /* Soft purple */
-  --color-primary-500: #6D4AFF;   /* Primary purple (brand default) */
-  --color-primary-600: #5938DC;   /* Primary hover */
-  --color-primary-700: #4a2e9e;   /* Primary active */
-  --color-primary-800: #241536;   /* Deep violet (brand dark) */
-  --color-primary-900: #210f45;   /* Deepest violet */
+  --color-primary-50:  #f0fcfd;   /* Lightest cyan tint */
+  --color-primary-100: #e0f7fa;   /* Very light cyan */
+  --color-primary-200: #b2ebf2;   /* Soft cyan */
+  --color-primary-300: #80deea;   /* Mid cyan */
+  --color-primary-400: #4dd0e1;   /* Vibrant cyan */
+  --color-primary-500: #26C6DA;   /* Primary Electric Cyan (brand token) */
+  --color-primary-600: #00acc1;   /* Cyan hover */
+  --color-primary-700: #0097a7;   /* Cyan active */
+  --color-primary-800: #00838f;   /* Deep cyan */
+  --color-primary-900: #006064;   /* Dark cyan */
+
+  /* FinTech Midnight Specific Tokens */
+  --color-midnight:    #1A1A2E;   /* Deep Midnight */
+  --color-slate-navy:  #2E3A4B;   /* Slate Navy */
+  --color-cyan:        #26C6DA;   /* Electric Cyan */
+  --color-platinum:    #B0BEC5;   /* Platinum Slate */
 
   /* ----------------------------------------------------------
-     NEUTRAL PALETTE (Violet-tinted warm neutrals)
-     Backgrounds, borders, text, surfaces
-     Warmer than pure slate to harmonize with the purple brand.
+     NEUTRAL PALETTE (Slate / Midnight tones)
      ---------------------------------------------------------- */
   --color-neutral-0:   #ffffff;
-  --color-neutral-50:  #fdf9f7;   /* Warm off-white (near cream) */
-  --color-neutral-100: #f5f0f0;   /* Subtle warm background */
-  --color-neutral-200: #E9E3EE;   /* Border default — lavender-tinted */
-  --color-neutral-300: #d0c6d8;   /* Border strong */
-  --color-neutral-400: #9E8FAA;   /* Text disabled / placeholder */
-  --color-neutral-500: #777184;   /* Text secondary */
-  --color-neutral-600: #4e4059;   /* Text body */
-  --color-neutral-700: #342944;   /* Text strong */
-  --color-neutral-800: #241B35;   /* Text heading — deep violet-black */
-  --color-neutral-900: #1A1023;   /* Text emphasis */
+  --color-neutral-50:  #f8fafc;   /* Ultra-clean slate off-white */
+  --color-neutral-100: #f1f5f9;   /* Subtle background */
+  --color-neutral-200: #e2e8f0;   /* Border default */
+  --color-neutral-300: #cbd5e1;   /* Border strong */
+  --color-neutral-400: #B0BEC5;   /* Platinum Slate / Placeholder */
+  --color-neutral-500: #64748b;   /* Text secondary */
+  --color-neutral-600: #475569;   /* Text body */
+  --color-neutral-700: #334155;   /* Text strong */
+  --color-neutral-800: #2E3A4B;   /* Slate Navy Heading */
+  --color-neutral-900: #1A1A2E;   /* Midnight Heading */
 
   /* ----------------------------------------------------------
      SEMANTIC COLORS
      ---------------------------------------------------------- */
 
-  /* Success — green */
-  --color-success-50:  #f0fdf4;
-  --color-success-100: #dcfce7;
-  --color-success-500: #22c55e;
-  --color-success-600: #26966A;
-  --color-success-700: #15803d;
+  /* Success — emerald */
+  --color-success-50:  #ecfdf5;
+  --color-success-100: #d1fae5;
+  --color-success-500: #10b981;
+  --color-success-600: #059669;
+  --color-success-700: #047857;
 
   /* Warning — amber */
   --color-warning-50:  #fffbeb;
   --color-warning-100: #fef3c7;
   --color-warning-500: #f59e0b;
-  --color-warning-600: #E99A28;
+  --color-warning-600: #d97706;
   --color-warning-700: #b45309;
 
-  /* Danger / Destructive — red */
-  --color-danger-50:  #fef2f2;
-  --color-danger-100: #fee2e2;
-  --color-danger-500: #ef4444;
-  --color-danger-600: #D94F5C;
-  --color-danger-700: #b91c1c;
+  /* Danger / Destructive — rose */
+  --color-danger-50:  #fff1f2;
+  --color-danger-100: #ffe4e6;
+  --color-danger-500: #f43f5e;
+  --color-danger-600: #e11d48;
+  --color-danger-700: #be123c;
 
-  /* Info — sky */
+  /* Info — cyan / sky */
   --color-info-50:  #f0f9ff;
   --color-info-100: #e0f2fe;
-  --color-info-500: #0ea5e9;
-  --color-info-600: #3297D3;
-  --color-info-700: #0369a1;
+  --color-info-500: #0284c7;
+  --color-info-600: #0369a1;
+  --color-info-700: #075985;
 
   /* ----------------------------------------------------------
      TASK STATUS COLORS
      ---------------------------------------------------------- */
-  --status-todo-bg:         #f5f0ff;   /* Lightest lavender */
-  --status-todo-text:       #4e4059;   /* Neutral violet-gray */
-  --status-todo-border:     #d0c6d8;
+  --status-todo-bg:         #f1f5f9;
+  --status-todo-text:       #475569;
+  --status-todo-border:     #cbd5e1;
 
-  --status-inprogress-bg:   #ede3ff;   /* Light lavender */
-  --status-inprogress-text: #4a2e9e;   /* Primary active purple */
-  --status-inprogress-border: #c9a6fa;
+  --status-inprogress-bg:   #e0f7fa;   /* Cyan tint */
+  --status-inprogress-text: #00838f;
+  --status-inprogress-border: #80deea;
 
-  --status-inreview-bg:     #faf5ff;
-  --status-inreview-text:   #341f60;   /* Deep violet */
-  --status-inreview-border: #e1c9ff;   /* Light lavender */
+  --status-inreview-bg:     #fef3c7;
+  --status-inreview-text:   #b45309;
+  --status-inreview-border: #fde68a;
 
-  --status-completed-bg:    #f0fdf4;
-  --status-completed-text:  #15803d;
-  --status-completed-border:#bbf7d0;
+  --status-completed-bg:    #ecfdf5;
+  --status-completed-text:  #047857;
+  --status-completed-border:#a7f3d0;
 
-  --status-overdue-bg:      #fef2f2;
-  --status-overdue-text:    #b91c1c;
-  --status-overdue-border:  #fecaca;
+  --status-overdue-bg:      #fff1f2;
+  --status-overdue-text:    #be123c;
+  --status-overdue-border:  #fecdd3;
 
   /* ----------------------------------------------------------
      TASK PRIORITY COLORS
      ---------------------------------------------------------- */
-  --priority-low-bg:       #f0fdf4;
-  --priority-low-text:     #15803d;
-  --priority-low-border:   #bbf7d0;
+  --priority-low-bg:       #ecfdf5;
+  --priority-low-text:     #047857;
+  --priority-low-border:   #a7f3d0;
 
   --priority-medium-bg:    #fffbeb;
   --priority-medium-text:  #b45309;
@@ -112,42 +116,42 @@
   --priority-high-text:    #c2410c;
   --priority-high-border:  #fed7aa;
 
-  --priority-urgent-bg:    #fef2f2;
-  --priority-urgent-text:  #b91c1c;
-  --priority-urgent-border:#fecaca;
+  --priority-urgent-bg:    #fff1f2;
+  --priority-urgent-text:  #be123c;
+  --priority-urgent-border:#fecdd3;
 
   /* ----------------------------------------------------------
      SURFACES
      ---------------------------------------------------------- */
-  --surface-page:      #FAF8F5;                  /* Soft cream page background */
-  --surface-card:      var(--color-neutral-0);   /* White card/panel */
+  --surface-page:      #F4F7F9;                  /* Clean slate-white page background */
+  --surface-card:      var(--color-neutral-0);   /* Crisp white card */
   --surface-raised:    var(--color-neutral-0);   /* Modal, dropdown */
-  --surface-sunken:    var(--color-primary-50);  /* Input bg — lightest lavender */
-  --surface-overlay:   rgba(52, 31, 96, 0.45);  /* Deep violet modal backdrop */
+  --surface-sunken:    var(--color-primary-50);  /* Lightest cyan input bg */
+  --surface-overlay:   rgba(26, 26, 46, 0.65);   /* FinTech Midnight backdrop */
 
   /* ----------------------------------------------------------
-     SIDEBAR
+     SIDEBAR — FinTech Midnight Theme
      ---------------------------------------------------------- */
-  --sidebar-bg:             #241536;   /* Deep violet-black */
-  --sidebar-text:           #9e8faa;   /* Muted lavender-gray */
+  --sidebar-bg:             #1A1A2E;   /* Midnight #1A1A2E */
+  --sidebar-text:           #B0BEC5;   /* Platinum Slate #B0BEC5 */
   --sidebar-text-active:    #ffffff;
-  --sidebar-icon:           #6e5f7a;   /* Muted violet */
-  --sidebar-icon-active:    #c9a6fa;   /* Soft purple active */
-  --sidebar-item-hover-bg:  #2e1f46;   /* Slightly lighter deep violet */
-  --sidebar-item-active-bg: rgba(109, 74, 255, 0.18); /* Primary purple tint */
-  --sidebar-border:         #2e1f46;
+  --sidebar-icon:           #78909c;   /* Slate Muted */
+  --sidebar-icon-active:    #26C6DA;   /* Electric Cyan #26C6DA */
+  --sidebar-item-hover-bg:  #2E3A4B;   /* Slate Navy #2E3A4B */
+  --sidebar-item-active-bg: rgba(38, 198, 218, 0.15); /* Electric Cyan Glow */
+  --sidebar-border:         #2E3A4B;   /* Slate Navy Border */
   --sidebar-width-expanded: 240px;
   --sidebar-width-collapsed: 64px;
 
   /* ----------------------------------------------------------
      TEXT COLORS
      ---------------------------------------------------------- */
-  --text-primary:    var(--color-neutral-800);   /* Headings */
-  --text-secondary:  var(--color-neutral-500);   /* Subtext, captions */
-  --text-tertiary:   var(--color-neutral-400);   /* Placeholder, disabled */
-  --text-inverse:    var(--color-neutral-0);     /* On dark backgrounds */
-  --text-link:       var(--color-primary-600);
-  --text-link-hover: var(--color-primary-700);
+  --text-primary:    #1A1A2E;   /* Deep Midnight */
+  --text-secondary:  #64748b;   /* Slate body */
+  --text-tertiary:   #94a3b8;   /* Muted */
+  --text-inverse:    var(--color-neutral-0);
+  --text-link:       #00acc1;
+  --text-link-hover: #00838f;
   --text-danger:     var(--color-danger-600);
   --text-success:    var(--color-success-600);
   --text-warning:    var(--color-warning-600);
@@ -155,15 +159,15 @@
   /* ----------------------------------------------------------
      BORDERS
      ---------------------------------------------------------- */
-  --border-color:         var(--color-neutral-200);
-  --border-color-strong:  var(--color-neutral-300);
-  --border-color-focus:   var(--color-primary-500);
+  --border-color:         #e2e8f0;
+  --border-color-strong:  #B0BEC5;   /* Platinum Slate */
+  --border-color-focus:   #26C6DA;   /* Electric Cyan */
   --border-color-danger:  var(--color-danger-500);
 
   /* ----------------------------------------------------------
-     TYPOGRAPHY — Inter font
+     TYPOGRAPHY — Space Grotesk Font
      ---------------------------------------------------------- */
-  --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 
   /* Font sizes */
   --text-xs:   12px;   /* Caption */

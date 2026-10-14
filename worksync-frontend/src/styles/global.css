@@ -2643,3 +2643,116 @@ hr {
     align-items: flex-start;
   }
 }
+
+/* ============================================================
+   FINTECH MIDNIGHT BUTTON & UI UTILITIES
+   Palette:
+     #1A1A2E (Midnight)
+     #2E3A4B (Slate Navy)
+     #26C6DA (Electric Cyan)
+     #B0BEC5 (Platinum Slate)
+   Font: Space Grotesk
+   ============================================================ */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  font-family: var(--font-family);
+  font-weight: 700;
+  font-size: var(--fs-sm);
+  padding: 0.65rem 1.25rem;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  letter-spacing: -0.01em;
+  text-decoration: none;
+}
+
+.btn:active {
+  transform: scale(0.98);
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #26C6DA 0%, #00acc1 100%) !important;
+  color: #1A1A2E !important;
+  border-color: #26C6DA !important;
+  box-shadow: 0 4px 14px rgba(38, 198, 218, 0.35);
+}
+
+.btn-primary:hover {
+  background: linear-gradient(135deg, #4dd0e1 0%, #26C6DA 100%) !important;
+  box-shadow: 0 6px 20px rgba(38, 198, 218, 0.5);
+  transform: translateY(-1px);
+  color: #1A1A2E !important;
+}
+
+.btn-secondary {
+  background-color: #2E3A4B !important;
+  color: #ffffff !important;
+  border-color: #2E3A4B !important;
+  box-shadow: 0 2px 8px rgba(46, 58, 75, 0.25);
+}
+
+.btn-secondary:hover {
+  background-color: #1A1A2E !important;
+  border-color: #1A1A2E !important;
+  color: #26C6DA !important;
+}
+
+.btn-tertiary {
+  background-color: transparent !important;
+  color: #2E3A4B !important;
+  border-color: #e2e8f0 !important;
+}
+
+.btn-tertiary:hover {
+  background-color: #f1f5f9 !important;
+  border-color: #B0BEC5 !important;
+  color: #1A1A2E !important;
+}
+
+.btn-sm {
+  padding: 0.4rem 0.85rem;
+  font-size: var(--fs-xs);
+  border-radius: 6px;
+}
+
+.btn-lg {
+  padding: 0.85rem 1.75rem;
+  font-size: var(--fs-base);
+  border-radius: 10px;
+}
+
+.sidebar-logo-mark {
+  background: linear-gradient(135deg, #26C6DA 0%, #2E3A4B 100%) !important;
+  color: #1A1A2E !important;
+  font-weight: 800;
+  box-shadow: 0 4px 12px rgba(38, 198, 218, 0.3);
+}
+
+.sidebar-nav-item.active {
+  background-color: rgba(38, 198, 218, 0.15) !important;
+  color: #26C6DA !important;
+  border-left: 3px solid #26C6DA;
+}
+
+.sidebar-nav-item.active .sidebar-nav-icon {
+  color: #26C6DA !important;
+}
+
+.sidebar-nav-item:hover {
+  background-color: #2E3A4B !important;
+  color: #26C6DA !important;
+}
+
+.avatar {
+  background: linear-gradient(135deg, #2E3A4B 0%, #1A1A2E 100%) !important;
+  color: #26C6DA !important;
+  font-family: var(--font-family) !important;
+  font-weight: 700 !important;
+  border: 2px solid #26C6DA !important;
+}
+
