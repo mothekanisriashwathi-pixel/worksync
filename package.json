@@ -1,0 +1,20 @@
+{
+  "name": "worksync",
+  "version": "1.0.0",
+  "description": "WorkSync - Full-Stack Team & Project Management System",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently -k -p \"[{name}]\" -n \"frontend,backend\" -c \"cyan.bold,green.bold\" \"npm run dev:frontend\" \"npm run dev:backend\"",
+    "dev:frontend": "npm --prefix worksync-frontend run dev",
+    "dev:backend": "node scripts/start-backend.js",
+    "build": "npm --prefix worksync-frontend run build",
+    "lint": "npm --prefix worksync-frontend run lint",
+    "install:frontend": "npm --prefix worksync-frontend install",
+    "install:backend": "pip install -r worksync-backend/requirements.txt",
+    "install:all": "npm install && npm run install:frontend && npm run install:backend"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}
