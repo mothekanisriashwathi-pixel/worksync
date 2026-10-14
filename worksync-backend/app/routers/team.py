@@ -140,30 +140,32 @@ def create_team(
     team_data: TeamCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(
-        require_roles(UserRole.ADMIN)
+        require_roles(UserRole.ADMIN, UserRole.MANAGER)
     ),
 ):
-    manager = db.get(
-        User,
-        team_data.manager_id,
-    )
-
-    if not manager:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Manager not found",
-        )
-
-    if manager.role != UserRole.MANAGER:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Selected user is not a manager",
-        )
+    if current_user.role == UserRole.MANAGER:
+        manager_id = current_user.id
+    else:
+        if team_data.manager_id is not None:
+            manager = db.get(User, team_data.manager_id)
+            if not manager:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Manager not found",
+                )
+            if manager.role != UserRole.MANAGER:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Selected user is not a manager",
+                )
+            manager_id = manager.id
+        else:
+            manager_id = current_user.id
 
     team = Team(
         name=team_data.name,
         description=team_data.description,
-        manager_id=team_data.manager_id,
+        manager_id=manager_id,
     )
 
     db.add(team)
@@ -185,13 +187,10 @@ def update_team(
     team_data: TeamUpdate,
     db: Session = Depends(get_db),
     current_user: User = Depends(
-        require_roles(UserRole.ADMIN)
+        require_roles(UserRole.ADMIN, UserRole.MANAGER)
     ),
 ):
-    team = db.get(
-        Team,
-        team_id,
-    )
+    team = db.get(Team, team_id)
 
     if not team:
         raise HTTPException(
@@ -199,34 +198,34 @@ def update_team(
             detail="Team not found",
         )
 
-    if team_data.manager_id is not None:
-        manager = db.get(
-            User,
-            team_data.manager_id,
+    if current_user.role == UserRole.MANAGER and team.manager_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You can only update teams you manage",
         )
 
+    if team_data.manager_id is not None:
+        if current_user.role != UserRole.ADMIN:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Only administrators can reassign team managers",
+            )
+        manager = db.get(User, team_data.manager_id)
         if not manager:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Manager not found",
             )
-
         if manager.role != UserRole.MANAGER:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Selected user is not a manager",
             )
 
-    update_data = team_data.model_dump(
-        exclude_unset=True
-    )
+    update_data = team_data.model_dump(exclude_unset=True)
 
     for field, value in update_data.items():
-        setattr(
-            team,
-            field,
-            value,
-        )
+        setattr(team, field, value)
 
     db.commit()
     db.refresh(team)
@@ -247,13 +246,10 @@ def add_team_member(
     member_data: TeamMemberAdd,
     db: Session = Depends(get_db),
     current_user: User = Depends(
-        require_roles(UserRole.ADMIN)
+        require_roles(UserRole.ADMIN, UserRole.MANAGER)
     ),
 ):
-    team = db.get(
-        Team,
-        team_id,
-    )
+    team = db.get(Team, team_id)
 
     if not team:
         raise HTTPException(
@@ -261,10 +257,13 @@ def add_team_member(
             detail="Team not found",
         )
 
-    user = db.get(
-        User,
-        member_data.user_id,
-    )
+    if current_user.role == UserRole.MANAGER and team.manager_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You can only add members to your own team",
+        )
+
+    user = db.get(User, member_data.user_id)
 
     if not user:
         raise HTTPException(
@@ -309,9 +308,22 @@ def remove_team_member(
     user_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(
-        require_roles(UserRole.ADMIN)
+        require_roles(UserRole.ADMIN, UserRole.MANAGER)
     ),
 ):
+    team = db.get(Team, team_id)
+    if not team:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Team not found",
+        )
+
+    if current_user.role == UserRole.MANAGER and team.manager_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You can only remove members from your own team",
+        )
+
     membership = db.scalar(
         select(TeamMember).where(
             TeamMember.team_id == team_id,
@@ -326,4 +338,29 @@ def remove_team_member(
         )
 
     db.delete(membership)
+    db.commit()
+
+
+# ---------------------------------------------------------
+# DELETE TEAM
+# ---------------------------------------------------------
+@router.delete(
+    "/{team_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def delete_team(
+    team_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(
+        require_roles(UserRole.ADMIN)
+    ),
+):
+    team = db.get(Team, team_id)
+    if not team:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Team not found",
+        )
+
+    db.delete(team)
     db.commit()
