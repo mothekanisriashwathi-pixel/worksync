@@ -24,6 +24,7 @@ router = APIRouter(
     response_model=list[TaskResponse],
 )
 def get_tasks(
+    project_id: int | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(
         require_roles(
@@ -34,21 +35,52 @@ def get_tasks(
     ),
 ):
     if current_user.role == UserRole.ADMIN:
-        return db.scalars(
-            select(Task).order_by(Task.id)
-        ).all()
+        stmt = select(Task)
+        if project_id is not None:
+            stmt = stmt.where(Task.project_id == project_id)
+        return db.scalars(stmt.order_by(Task.id)).all()
 
     if current_user.role == UserRole.MANAGER:
-        return db.scalars(
+        stmt = (
             select(Task)
             .join(Project, Task.project_id == Project.id)
             .where(Project.manager_id == current_user.id)
+        )
+        if project_id is not None:
+            stmt = stmt.where(Task.project_id == project_id)
+        return db.scalars(stmt.order_by(Task.id)).all()
+
+    # Member: tasks in projects belonging to teams they are part of
+    if project_id is not None:
+        project = db.get(Project, project_id)
+        if not project:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Project not found",
+            )
+        membership = db.scalar(
+            select(TeamMember).where(
+                TeamMember.team_id == project.team_id,
+                TeamMember.user_id == current_user.id,
+            )
+        )
+        if not membership:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You do not have access to this project",
+            )
+        return db.scalars(
+            select(Task)
+            .where(Task.project_id == project_id)
             .order_by(Task.id)
         ).all()
 
     return db.scalars(
         select(Task)
-        .where(Task.assigned_to == current_user.id)
+        .join(Project, Task.project_id == Project.id)
+        .join(TeamMember, TeamMember.team_id == Project.team_id)
+        .where(TeamMember.user_id == current_user.id)
+        .distinct()
         .order_by(Task.id)
     ).all()
 
@@ -241,3 +273,101 @@ def update_task(
     db.refresh(task)
 
     return task
+
+
+# ---------------------------------------------------------
+# GET TASK BY ID
+# ---------------------------------------------------------
+@router.get(
+    "/{task_id}",
+    response_model=TaskResponse,
+)
+def get_task(
+    task_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(
+        require_roles(
+            UserRole.ADMIN,
+            UserRole.MANAGER,
+            UserRole.MEMBER,
+        )
+    ),
+):
+    task = db.get(Task, task_id)
+    if not task:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Task not found",
+        )
+
+    if current_user.role == UserRole.ADMIN:
+        return task
+
+    project = db.get(Project, task.project_id)
+    if not project:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Project not found",
+        )
+
+    if current_user.role == UserRole.MANAGER:
+        if project.manager_id != current_user.id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You do not have access to this task",
+            )
+        return task
+
+    # Member: check if assigned or member of the project team
+    if task.assigned_to == current_user.id:
+        return task
+
+    membership = db.scalar(
+        select(TeamMember).where(
+            TeamMember.team_id == project.team_id,
+            TeamMember.user_id == current_user.id,
+        )
+    )
+    if not membership:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have access to this task",
+        )
+
+    return task
+
+
+# ---------------------------------------------------------
+# DELETE TASK
+# ---------------------------------------------------------
+@router.delete(
+    "/{task_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def delete_task(
+    task_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(
+        require_roles(
+            UserRole.ADMIN,
+            UserRole.MANAGER,
+        )
+    ),
+):
+    task = db.get(Task, task_id)
+    if not task:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Task not found",
+        )
+
+    if current_user.role == UserRole.MANAGER:
+        project = db.get(Project, task.project_id)
+        if not project or project.manager_id != current_user.id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You can only delete tasks in your own projects",
+            )
+
+    db.delete(task)
+    db.commit()
