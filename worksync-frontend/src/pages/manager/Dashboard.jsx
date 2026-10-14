@@ -1,562 +1,730 @@
-/**
- * Dashboard — connected to real API data.
- *
- * Data sources (all role-scoped by the backend):
- *   GET /tasks         → TaskResponse[]
- *   GET /projects      → ProjectResponse[]
- *   GET /notifications → NotificationResponse[]
- *
- * What is derived client-side (no dedicated endpoint exists):
- *   - project_name on tasks   (looked up from projects by project_id)
- *   - progress / tasksTotal / tasksDone on projects (counted from tasks)
- *   - overdue flag            (due_date < today)
- *   - dueDate display string  (formatted from ISO date)
- *   - deadlineNear            (due_date within 14 days)
- *   - stat card counts        (counted from tasks / projects arrays)
- *   - task status chart data  (counted from tasks)
- *   - activity feed           (built from notifications)
- *   - assignee name           (not in TaskResponse — shows "—" until a
- *                              /users endpoint is consumed in a later phase)
- */
-import { useEffect, useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../../context/AuthContext'
+import { getDashboardSummary } from '../../api/dashboardApi'
+import { createTask, updateTaskStatus } from '../../api/tasksApi'
+import { getProjects } from '../../api/projectsApi'
+import { getTeams, getTeamMembers } from '../../api/teamsApi'
+import { submitTaskWork, reviewSubmission } from '../../api/submissionsApi'
 
-import StatCard       from '../../components/common/StatCard'
-import TaskItem       from '../../components/tasks/TaskItem'
-import ProjectProgress from '../../components/projects/ProjectProgress'
-import ActivityFeed   from '../../components/notifications/ActivityFeed'
-import {
-  IconAdd,
-  IconProjects,
-  IconTasks,
-  IconTeam,
-  IconProgress,
-  IconCheck,
-  IconWarning,
-} from '../../components/common/WorkSyncIcons'
+import DashboardHeader from '../../components/dashboard/DashboardHeader'
+import MetricCard from '../../components/dashboard/MetricCard'
+import TaskStatusChart from '../../components/dashboard/TaskStatusChart'
+import ProjectProgressCard from '../../components/dashboard/ProjectProgressCard'
+import TeamWorkload from '../../components/dashboard/TeamWorkload'
+import UpcomingDeadlines from '../../components/dashboard/UpcomingDeadlines'
+import PendingReviews from '../../components/dashboard/PendingReviews'
+import RecentActivity from '../../components/dashboard/RecentActivity'
+import PlatformOverview from '../../components/dashboard/PlatformOverview'
+import QuickActions from '../../components/dashboard/QuickActions'
+import { LoadingState, ErrorState } from '../../components/dashboard/DashboardStates'
+import { IconClose, IconAdd, IconCheck } from '../../components/common/WorkSyncIcons'
 
-import { getTasks }         from '../../api/tasksApi'
-import { getProjects }      from '../../api/projectsApi'
-import { getNotifications } from '../../api/notificationsApi'
+export default function Dashboard() {
+  const navigate = useNavigate()
+  const { user } = useAuth()
 
-/* ─────────────────────────────────────────────────────────────────────
-   HELPERS
-───────────────────────────────────────────────────────────────────── */
+  const [activeView, setActiveView] = useState(null)
+  const [data, setData] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
 
-/**
- * Normalise the backend enum value to the lowercase key the UI expects.
- * e.g. "IN_PROGRESS" → "inprogress", "IN_REVIEW" → "inreview"
- */
-function normaliseStatus(s) {
-  if (!s) return 'todo'
-  return s.toLowerCase().replace(/_/g, '')
-}
+  // Action Modals
+  const [createTaskOpen, setCreateTaskOpen] = useState(false)
+  const [submitWorkOpen, setSubmitWorkOpen] = useState(false)
+  const [reviewModalOpen, setReviewModalOpen] = useState(false)
+  const [selectedReviewItem, setSelectedReviewItem] = useState(null)
 
-function normalisePriority(p) {
-  if (!p) return 'medium'
-  return p.toLowerCase()
-}
+  // Create Task Form State
+  const [allProjects, setAllProjects] = useState([])
+  const [taskTitle, setTaskTitle] = useState('')
+  const [taskDesc, setTaskDesc] = useState('')
+  const [taskProjectId, setTaskProjectId] = useState('')
+  const [taskAssigneeId, setTaskAssigneeId] = useState('')
+  const [taskPriority, setTaskPriority] = useState('MEDIUM')
+  const [taskDueDate, setTaskDueDate] = useState('')
+  const [projectMembers, setProjectMembers] = useState([])
+  const [taskSubmitting, setTaskSubmitting] = useState(false)
+  const [taskError, setTaskError] = useState('')
 
-/**
- * Format an ISO date string (or null) into a human-readable label.
- * Returns null when due_date is null so the UI hides the date column.
- */
-function formatDueDate(isoDate) {
-  if (!isoDate) return null
-  const due   = new Date(isoDate)
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  due.setHours(0, 0, 0, 0)
-  const diff = (due - today) / 86_400_000   // days
-  if (diff === 0)  return 'Today'
-  if (diff === 1)  return 'Tomorrow'
-  if (diff === -1) return 'Yesterday'
-  return due.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-}
+  // Submit Work Form State
+  const [submitTaskId, setSubmitTaskId] = useState('')
+  const [submitFile, setSubmitFile] = useState(null)
+  const [submitComment, setSubmitComment] = useState('')
+  const [submitLoading, setSubmitLoading] = useState(false)
+  const [submitError, setSubmitError] = useState('')
 
-function isOverdue(isoDate) {
-  if (!isoDate) return false
-  const due = new Date(isoDate)
-  return due < new Date()
-}
+  // Review Form State
+  const [reviewStatus, setReviewStatus] = useState('APPROVED')
+  const [reviewCommentText, setReviewCommentText] = useState('')
+  const [reviewLoading, setReviewLoading] = useState(false)
+  const [reviewError, setReviewError] = useState('')
 
-function isDeadlineNear(isoDate, days = 14) {
-  if (!isoDate) return false
-  const due   = new Date(isoDate)
-  const today = new Date()
-  const diff  = (due - today) / 86_400_000
-  return diff >= 0 && diff <= days
-}
+  // Fetch Dashboard Summary
+  useEffect(() => {
+    loadSummary(activeView)
+  }, [activeView])
 
-/**
- * Build a task shape the UI components expect from a raw TaskResponse
- * and the projects lookup map.
- */
-function adaptTask(raw, projectMap) {
-  return {
-    id:       raw.id,
-    title:    raw.title,
-    project:  projectMap[raw.project_id]?.name ?? `Project #${raw.project_id}`,
-    assignee: '—',                          // assignee name not in TaskResponse
-    priority: normalisePriority(raw.priority),
-    status:   normaliseStatus(raw.status),
-    dueDate:  formatDueDate(raw.due_date),
-    overdue:  isOverdue(raw.due_date),
-    _raw:     raw,                          // keep original for any future use
-  }
-}
-
-/**
- * Enrich each project with task-derived metrics:
- * tasksTotal, tasksDone, progress (%), deadlineNear, status (normalised).
- */
-function adaptProject(raw, tasksByProject) {
-  const projectTasks = tasksByProject[raw.id] ?? []
-  const tasksTotal   = projectTasks.length
-  const tasksDone    = projectTasks.filter(t => t.status === 'COMPLETED').length
-  const progress     = tasksTotal === 0
-    ? 0
-    : Math.round((tasksDone / tasksTotal) * 100)
-
-  return {
-    id:           raw.id,
-    name:         raw.name,
-    status:       normaliseStatus(raw.status),
-    progress,
-    tasksTotal,
-    tasksDone,
-    deadline:     raw.due_date
-      ? new Date(raw.due_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-      : null,
-    deadlineNear: isDeadlineNear(raw.due_date),
-    _raw:         raw,
-  }
-}
-
-/**
- * Convert a NotificationResponse into an ActivityFeed item.
- * The backend stores a flat `message` string; we expose it as the target
- * with a generic action verb, grouped by `type`.
- */
-function adaptNotification(n) {
-  const typeMap = {
-    TASK_ASSIGNED: { action: 'assigned you to', type: 'assign' },
-    TASK_UPDATED:  { action: 'updated',          type: 'status' },
-    SUBMISSION:    { action: 'submitted work on', type: 'submit' },
-    COMMENT:       { action: 'commented on',      type: 'comment' },
-    REVIEW:        { action: 'reviewed',          type: 'review' },
-    APPROVED:      { action: 'approved',          type: 'approve' },
-  }
-  const mapped  = typeMap[n.type] ?? { action: 'updated', type: 'status' }
-  const created = new Date(n.created_at)
-  const diffMin = Math.round((Date.now() - created) / 60_000)
-  let time
-  if (diffMin < 1)       time = 'just now'
-  else if (diffMin < 60) time = `${diffMin} min ago`
-  else if (diffMin < 1440) time = `${Math.round(diffMin / 60)} hr ago`
-  else                   time = `${Math.round(diffMin / 1440)} days ago`
-
-  // Derive initials from the message text as a best-effort fallback
-  const initials = n.message.slice(0, 2).toUpperCase()
-
-  return {
-    id:       n.id,
-    actor:    'WorkSync',           // actor name not in NotificationResponse
-    initials,
-    action:   mapped.action,
-    target:   n.message,
-    time,
-    type:     mapped.type,
-    unread:   !n.is_read,
-  }
-}
-
-/* ─────────────────────────────────────────────────────────────────────
-   STAT CARD CONFIG (static metadata; counts filled from API data)
-───────────────────────────────────────────────────────────────────── */
-
-const STAT_META = {
-  manager: [
-    { key: 'active_projects',     label: 'Active Projects',     icon: IconProjects, iconBgVar: '--color-primary-50',  iconColorVar: '--color-primary-600'  },
-    { key: 'open_tasks',          label: 'Open Tasks',          icon: IconTasks,    iconBgVar: '--color-warning-50',  iconColorVar: '--color-warning-600'  },
-    { key: 'in_review',           label: 'In Review',           icon: IconWarning,  iconBgVar: '--color-info-50',     iconColorVar: '--color-info-600'     },
-    { key: 'completed_this_week', label: 'Completed This Week', icon: IconCheck,    iconBgVar: '--color-success-50',  iconColorVar: '--color-success-600'  },
-  ],
-  admin: [
-    { key: 'active_projects',     label: 'Active Projects',     icon: IconProjects, iconBgVar: '--color-primary-50',  iconColorVar: '--color-primary-600'  },
-    { key: 'open_tasks',          label: 'Open Tasks',          icon: IconTasks,    iconBgVar: '--color-warning-50',  iconColorVar: '--color-warning-600'  },
-    { key: 'in_review',           label: 'In Review',           icon: IconWarning,  iconBgVar: '--color-info-50',     iconColorVar: '--color-info-600'     },
-    { key: 'completed_this_week', label: 'Completed This Week', icon: IconCheck,    iconBgVar: '--color-success-50',  iconColorVar: '--color-success-600'  },
-  ],
-  member: [
-    { key: 'open_tasks',          label: 'My Open Tasks',       icon: IconTasks,    iconBgVar: '--color-primary-50',  iconColorVar: '--color-primary-600'  },
-    { key: 'in_review',           label: 'In Review',           icon: IconWarning,  iconBgVar: '--color-warning-50',  iconColorVar: '--color-warning-600'  },
-    { key: 'completed_this_week', label: 'Completed This Week', icon: IconCheck,    iconBgVar: '--color-success-50',  iconColorVar: '--color-success-600'  },
-    { key: 'active_projects',     label: "Projects I'm On",     icon: IconProjects, iconBgVar: '--color-info-50',     iconColorVar: '--color-info-600'     },
-  ],
-}
-
-/**
- * Derive stat card values purely from the task and project arrays.
- * No separate stats endpoint exists.
- */
-function deriveStats(role, tasks, projects) {
-  const now          = new Date()
-  const weekAgo      = new Date(now - 7 * 86_400_000)
-  const openStatuses = new Set(['TODO', 'IN_PROGRESS'])
-
-  const activeProjects     = projects.filter(p => p.status !== 'COMPLETED' && p.status !== 'ON_HOLD').length
-  const openTasks          = tasks.filter(t => openStatuses.has(t.status)).length
-  const inReview           = tasks.filter(t => t.status === 'IN_REVIEW').length
-  const completedThisWeek  = tasks.filter(t =>
-    t.status === 'COMPLETED' &&
-    t.updated_at && new Date(t.updated_at) >= weekAgo
-  ).length
-
-  const countMap = {
-    active_projects:     String(activeProjects),
-    open_tasks:          String(openTasks),
-    in_review:           String(inReview),
-    completed_this_week: String(completedThisWeek),
+  function loadSummary(viewToFetch) {
+    setLoading(true)
+    setError(null)
+    getDashboardSummary(viewToFetch)
+      .then(res => {
+        setData(res)
+        if (!activeView) {
+          setActiveView(res.active_view)
+        }
+      })
+      .catch(err => {
+        console.error('Failed to load dashboard:', err)
+        const detail = err?.response?.data?.detail
+        setError(typeof detail === 'string' ? detail : 'Unable to connect to WorkSync backend.')
+      })
+      .finally(() => setLoading(false))
   }
 
-  return (STAT_META[role] ?? STAT_META.manager).map(meta => ({
-    ...meta,
-    value:  countMap[meta.key] ?? '—',
-    change: null,
-    trend:  null,
-  }))
-}
+  // Fetch projects when opening create task modal
+  useEffect(() => {
+    if (createTaskOpen) {
+      getProjects()
+        .then(projs => {
+          setAllProjects(projs || [])
+          if (projs && projs.length > 0 && !taskProjectId) {
+            setTaskProjectId(String(projs[0].id))
+          }
+        })
+        .catch(() => setAllProjects([]))
+    }
+  }, [createTaskOpen])
 
-/* ─────────────────────────────────────────────────────────────────────
-   ROLE CONFIG
-───────────────────────────────────────────────────────────────────── */
+  // Fetch team members when taskProjectId changes
+  useEffect(() => {
+    if (!taskProjectId || !allProjects.length) return
+    const proj = allProjects.find(p => String(p.id) === String(taskProjectId))
+    if (proj?.team_id) {
+      getTeamMembers(proj.team_id)
+        .then(m => {
+          setProjectMembers(m || [])
+          if (m && m.length > 0) {
+            setTaskAssigneeId(String(m[0].user_id))
+          } else {
+            setTaskAssigneeId('')
+          }
+        })
+        .catch(() => setProjectMembers([]))
+    }
+  }, [taskProjectId, allProjects])
 
-const ROLE_CONFIG = {
-  manager: {
-    greeting:        name => `Good morning, ${name} — here's your team's progress today.`,
-    action:          { label: 'New Task', key: 'new_task' },
-    showReviewQueue: true,
-    showProjects:    true,
-    showActivity:    true,
-    taskLabel:       'Upcoming Tasks',
-    taskSubLabel:    'Tasks that need attention soon',
-    showAssignee:    true,
-  },
-  admin: {
-    greeting:        name => `Welcome back, ${name} — platform overview.`,
-    action:          { label: 'Add User', key: 'add_user' },
-    showReviewQueue: false,
-    showProjects:    true,
-    showActivity:    true,
-    taskLabel:       'Upcoming Tasks',
-    taskSubLabel:    'Across all teams',
-    showAssignee:    true,
-  },
-  member: {
-    greeting:        name => `Good morning, ${name} — here are your tasks for today.`,
-    action:          { label: 'Submit Work', key: 'submit_work' },
-    showReviewQueue: false,
-    showProjects:    true,
-    showActivity:    true,
-    taskLabel:       'My Tasks',
-    taskSubLabel:    'Tasks currently assigned to you',
-    showAssignee:    false,
-  },
-}
+  // Primary header button handler
+  function handlePrimaryAction() {
+    const currentView = data?.active_view || activeView
+    if (currentView === 'member') {
+      setSubmitWorkOpen(true)
+    } else if (currentView === 'team_lead') {
+      setCreateTaskOpen(true)
+    } else if (currentView === 'manager') {
+      navigate('/projects')
+    } else {
+      navigate('/team')
+    }
+  }
 
-/* ─────────────────────────────────────────────────────────────────────
-   SUB-COMPONENTS (identical UI to before — only data source changes)
-───────────────────────────────────────────────────────────────────── */
+  // Quick action button dispatcher
+  function handleQuickAction(actionType) {
+    if (actionType === 'submit_work') {
+      setSubmitWorkOpen(true)
+    } else if (actionType === 'create_task') {
+      setCreateTaskOpen(true)
+    } else if (actionType === 'create_project') {
+      navigate('/projects')
+    } else if (actionType === 'review_queue') {
+      // scroll to reviews or open
+      const revEl = document.getElementById('pending-reviews-section')
+      if (revEl) revEl.scrollIntoView({ behavior: 'smooth' })
+    }
+  }
 
-const cardHeaderStyle = {
-  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-  gap: 'var(--space-3)', marginBottom: 'var(--space-4)',
-}
+  // Submit Create Task
+  async function handleCreateTaskSubmit(e) {
+    e.preventDefault()
+    if (!taskTitle.trim() || !taskProjectId) return
+    setTaskSubmitting(true)
+    setTaskError('')
 
-function ChartCard({ title, subtitle, children, className = '' }) {
+    try {
+      await createTask({
+        title: taskTitle.trim(),
+        description: taskDesc.trim() || undefined,
+        project_id: parseInt(taskProjectId, 10),
+        assigned_to: parseInt(taskAssigneeId, 10) || user.id,
+        priority: taskPriority,
+        due_date: taskDueDate || undefined,
+      })
+      setCreateTaskOpen(false)
+      setTaskTitle('')
+      setTaskDesc('')
+      setTaskDueDate('')
+      loadSummary(activeView)
+    } catch (err) {
+      console.error('Failed to create task:', err)
+      const detail = err?.response?.data?.detail
+      setTaskError(typeof detail === 'string' ? detail : 'Failed to create task.')
+    } finally {
+      setTaskSubmitting(false)
+    }
+  }
+
+  // Submit Work on Task
+  async function handleSubmitWork(e) {
+    e.preventDefault()
+    if (!submitTaskId || !submitFile) {
+      setSubmitError('Please select a task and upload a deliverable file.')
+      return
+    }
+    setSubmitLoading(true)
+    setSubmitError('')
+
+    const formData = new FormData()
+    formData.append('file', submitFile)
+    if (submitComment.trim()) {
+      formData.append('comment', submitComment.trim())
+    }
+
+    try {
+      await submitTaskWork(submitTaskId, formData)
+      setSubmitWorkOpen(false)
+      setSubmitFile(null)
+      setSubmitComment('')
+      loadSummary(activeView)
+    } catch (err) {
+      console.error('Failed to submit work:', err)
+      const detail = err?.response?.data?.detail
+      setSubmitError(typeof detail === 'string' ? detail : 'Failed to submit deliverable.')
+    } finally {
+      setSubmitLoading(false)
+    }
+  }
+
+  // Open Review Modal
+  function handleOpenReview(item) {
+    setSelectedReviewItem(item)
+    setReviewStatus('APPROVED')
+    setReviewCommentText('')
+    setReviewError('')
+    setReviewModalOpen(true)
+  }
+
+  // Submit Review
+  async function handleSubmitReview(e) {
+    e.preventDefault()
+    if (!selectedReviewItem) return
+    setReviewLoading(true)
+    setReviewError('')
+
+    try {
+      await reviewSubmission(selectedReviewItem.id, {
+        status: reviewStatus,
+        review_comment: reviewCommentText.trim() || undefined,
+      })
+      setReviewModalOpen(false)
+      setSelectedReviewItem(null)
+      loadSummary(activeView)
+    } catch (err) {
+      console.error('Failed to review submission:', err)
+      const detail = err?.response?.data?.detail
+      setReviewError(typeof detail === 'string' ? detail : 'Failed to submit review.')
+    } finally {
+      setReviewLoading(false)
+    }
+  }
+
+  if (loading && !data) {
+    return <LoadingState />
+  }
+
+  if (error && !data) {
+    return <ErrorState error={error} onRetry={() => loadSummary(activeView)} />
+  }
+
+  const effectiveView = data?.active_view || 'member'
+
   return (
-    <section className={`card dashboard-chart-card ${className}`} style={{ minWidth: 0 }}>
-      <div className="card-header" style={cardHeaderStyle}>
-        <div className="card-header-left">
-          <h2 className="card-title">{title}</h2>
-          <p className="caption">{subtitle}</p>
-        </div>
+    <div style={{ maxWidth: 1200, margin: '0 auto', paddingBottom: '3.5rem' }}>
+      {/* 1. Header with greeting, role badge, date, view toggle, and primary action */}
+      <DashboardHeader
+        greeting={data.greeting}
+        subtitle={data.subtitle}
+        dateDisplay={data.date_display}
+        role={data.role}
+        activeView={effectiveView}
+        allowedViews={data.allowed_views}
+        onViewChange={v => {
+          setActiveView(v)
+        }}
+        onPrimaryAction={handlePrimaryAction}
+      />
+
+      {/* 2. Quick Actions Bar */}
+      <div style={{ marginBottom: '1.75rem' }}>
+        <QuickActions
+          activeView={effectiveView}
+          onAction={handleQuickAction}
+          onNavigate={navigate}
+        />
       </div>
-      {children}
-    </section>
-  )
-}
 
-function ProjectOverviewChart({ projects }) {
-  const colors = ['#6949D0', '#A78BFA', '#C4B5FD', '#E1C9FF']
-  return (
-    <div className="dashboard-project-chart">
-      <div className="dashboard-bar-chart" role="img" aria-label="Project completion percentages">
-        {projects.map((project, index) => (
-          <div className="dashboard-bar-row" key={project.id}>
-            <span className="dashboard-bar-label" title={project.name}>{project.name}</span>
-            <div className="dashboard-bar-track">
-              <div
-                className="dashboard-bar-fill"
-                style={{ width: `${project.progress}%`, backgroundColor: colors[index % colors.length] }}
+      {/* 3. Metric Cards Grid (4 responsive cards) */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+          gap: '1.25rem',
+          marginBottom: '2rem',
+        }}
+      >
+        {data.metrics.map(m => (
+          <MetricCard key={m.key} item={m} />
+        ))}
+      </div>
+
+      {/* 4. Role-Specific Dashboard Content Layouts */}
+
+      {/* A. MEMBER DASHBOARD */}
+      {effectiveView === 'member' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '1.5rem' }}>
+            <TaskStatusChart distribution={data.task_status_distribution} />
+            <UpcomingDeadlines
+              tasks={data.upcoming_deadlines}
+              onOpenTask={() => navigate('/tasks')}
+            />
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '1.5rem' }}>
+            <ProjectProgressCard
+              projects={data.projects}
+              onOpenProject={() => navigate('/projects')}
+            />
+            <RecentActivity activity={data.recent_activity} />
+          </div>
+        </div>
+      )}
+
+      {/* B. TEAM LEAD DASHBOARD */}
+      {effectiveView === 'team_lead' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '1.5rem' }}>
+            <TeamWorkload workload={data.team_workload} />
+            <TaskStatusChart distribution={data.task_status_distribution} />
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '1.5rem' }}>
+            <ProjectProgressCard
+              projects={data.projects}
+              onOpenProject={() => navigate('/projects')}
+            />
+            <div id="pending-reviews-section">
+              <PendingReviews
+                reviews={data.pending_reviews}
+                onReviewSubmission={handleOpenReview}
               />
             </div>
-            <strong className="dashboard-bar-value">{project.progress}%</strong>
           </div>
-        ))}
-      </div>
-      <p className="caption dashboard-chart-footnote">Overall progress across active projects</p>
-    </div>
-  )
-}
 
-function TaskStatusChart({ tasks }) {
-  // Derive counts from real tasks; fall back to zeros when loading
-  const counts = {
-    'To Do':       tasks.filter(t => t._raw?.status === 'TODO').length,
-    'In Progress': tasks.filter(t => t._raw?.status === 'IN_PROGRESS').length,
-    'In Review':   tasks.filter(t => t._raw?.status === 'IN_REVIEW').length,
-    'Completed':   tasks.filter(t => t._raw?.status === 'COMPLETED').length,
-  }
-  const statuses = [
-    { label: 'To Do',       count: counts['To Do'],       color: '#C4B5FD' },
-    { label: 'In Progress', count: counts['In Progress'], color: '#6949D0' },
-    { label: 'In Review',   count: counts['In Review'],   color: '#F5B544' },
-    { label: 'Completed',   count: counts['Completed'],   color: '#65B98A' },
-  ]
-  const total = statuses.reduce((sum, s) => sum + s.count, 0)
-  let offset  = 0
-  const segments = statuses.map(s => {
-    const start = offset
-    offset += total > 0 ? (s.count / total) * 100 : 25
-    return { ...s, start, end: offset }
-  })
-  const gradient = total > 0
-    ? `conic-gradient(${segments.map(s => `${s.color} ${s.start}% ${s.end}%`).join(', ')})`
-    : `conic-gradient(var(--color-neutral-200) 0% 100%)`
-
-  return (
-    <div className="dashboard-status-chart">
-      <div className="dashboard-donut-wrap">
-        <div className="dashboard-donut" style={{ background: gradient }}
-          role="img" aria-label={`Task status distribution, ${total} tasks`}>
-          <div className="dashboard-donut-hole">
-            <strong>{total}</strong>
-            <span>Tasks</span>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '1.5rem' }}>
+            <UpcomingDeadlines
+              tasks={data.upcoming_deadlines}
+              onOpenTask={() => navigate('/tasks')}
+            />
+            <RecentActivity activity={data.recent_activity} />
           </div>
-        </div>
-      </div>
-      <div className="dashboard-status-legend">
-        {statuses.map(s => (
-          <div className="dashboard-legend-row" key={s.label}>
-            <span className="dashboard-legend-dot" style={{ backgroundColor: s.color }} />
-            <span>{s.label}</span>
-            <strong>{s.count}</strong>
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-function ReviewQueue({ tasks }) {
-  return (
-    <section className="card dashboard-review-card">
-      <div className="dashboard-review-heading">
-        <div>
-          <h2 className="card-title">Needs Your Review</h2>
-          <p className="caption">{tasks.length} submission{tasks.length !== 1 ? 's' : ''} waiting</p>
-        </div>
-        <span className="badge badge-warning">Action required</span>
-      </div>
-      <div className="dashboard-review-list" role="list">
-        {tasks.map(task => <TaskItem key={task.id} task={task} showAssignee />)}
-      </div>
-    </section>
-  )
-}
-
-/* Skeleton row shown while data loads */
-function SkeletonRows({ count = 3 }) {
-  return Array.from({ length: count }).map((_, i) => (
-    <div key={i} style={{ padding: 'var(--space-3) 0', borderBottom: '1px solid var(--border-color)', display: 'flex', gap: 'var(--space-3)', alignItems: 'center' }}>
-      <div className="skeleton skeleton-text" style={{ width: 8, height: 8, borderRadius: '50%', flexShrink: 0 }} />
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
-        <div className="skeleton skeleton-text w-3-4" />
-        <div className="skeleton skeleton-text w-1-2" />
-      </div>
-    </div>
-  ))
-}
-
-/* ─────────────────────────────────────────────────────────────────────
-   MAIN COMPONENT
-───────────────────────────────────────────────────────────────────── */
-
-export default function Dashboard({ role = 'manager', user = { name: 'there' } }) {
-  const config = ROLE_CONFIG[role] ?? ROLE_CONFIG.manager
-
-  /* ── state ─────────────────────────────────────────────────────── */
-  const [rawTasks,         setRawTasks]         = useState([])
-  const [rawProjects,      setRawProjects]       = useState([])
-  const [rawNotifications, setRawNotifications]  = useState([])
-  const [loadingTasks,     setLoadingTasks]      = useState(true)
-  const [loadingProjects,  setLoadingProjects]   = useState(true)
-  const [loadingNotifs,    setLoadingNotifs]      = useState(true)
-  const [error,            setError]             = useState(null)
-
-  /* ── fetch ─────────────────────────────────────────────────────── */
-  useEffect(() => {
-    getTasks()
-      .then(setRawTasks)
-      .catch(err => {
-        // 401 means not logged in — silently leave tasks empty
-        if (err?.response?.status !== 401) setError('Could not load tasks.')
-      })
-      .finally(() => setLoadingTasks(false))
-
-    getProjects()
-      .then(setRawProjects)
-      .catch(err => {
-        if (err?.response?.status !== 401) setError('Could not load projects.')
-      })
-      .finally(() => setLoadingProjects(false))
-
-    getNotifications()
-      .then(setRawNotifications)
-      .catch(() => {}) // notifications failing silently is acceptable
-      .finally(() => setLoadingNotifs(false))
-  }, [])
-
-  /* ── derive ────────────────────────────────────────────────────── */
-
-  // Map project_id → ProjectResponse for task adaptation
-  const projectMap = Object.fromEntries(rawProjects.map(p => [p.id, p]))
-
-  // Map project_id → TaskResponse[] for project enrichment
-  const tasksByProject = rawTasks.reduce((acc, t) => {
-    ;(acc[t.project_id] ??= []).push(t)
-    return acc
-  }, {})
-
-  const tasks    = rawTasks.map(t => adaptTask(t, projectMap))
-  const projects = rawProjects.map(p => adaptProject(p, tasksByProject))
-  const activity = rawNotifications.map(adaptNotification)
-  const stats    = deriveStats(role, rawTasks, rawProjects)
-
-  // Review queue: tasks with status IN_REVIEW
-  const reviewTasks = tasks.filter(t => t._raw?.status === 'IN_REVIEW')
-
-  // Prioritised task list for the upcoming card
-  // Order: overdue first, then by due_date ascending, then by priority
-  const PRIORITY_ORDER = { urgent: 0, high: 1, medium: 2, low: 3 }
-  const sortedTasks = [...tasks].sort((a, b) => {
-    if (a.overdue !== b.overdue) return a.overdue ? -1 : 1
-    const aDate = a._raw?.due_date ? new Date(a._raw.due_date) : Infinity
-    const bDate = b._raw?.due_date ? new Date(b._raw.due_date) : Infinity
-    if (aDate !== bDate) return aDate - bDate
-    return (PRIORITY_ORDER[a.priority] ?? 9) - (PRIORITY_ORDER[b.priority] ?? 9)
-  })
-
-  const loading = loadingTasks || loadingProjects
-
-  /* ── render ────────────────────────────────────────────────────── */
-  return (
-    <div className="worksync-dashboard">
-
-      {/* Page header */}
-      <div className="page-header">
-        <div className="page-header-info">
-          <h1 className="page-title">Dashboard</h1>
-          <p className="body-text">{config.greeting(user.name)}</p>
-        </div>
-        <button className="btn btn-primary" type="button">
-          <IconAdd size={16} aria-hidden="true" />
-          {config.action.label}
-        </button>
-      </div>
-
-      {/* Error banner */}
-      {error && (
-        <div className="alert alert-warning" style={{ marginBottom: 'var(--space-5)' }}>
-          <p>{error} Showing whatever data is available.</p>
         </div>
       )}
 
-      {/* Stat cards */}
-      <section className="section" aria-label="Summary statistics">
-        <div className="stats-grid">
-          {stats.map(stat => <StatCard key={stat.key} {...stat} />)}
-        </div>
-      </section>
+      {/* C. PROJECT MANAGER DASHBOARD */}
+      {effectiveView === 'manager' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '1.5rem' }}>
+            <ProjectProgressCard
+              projects={data.projects}
+              onOpenProject={() => navigate('/projects')}
+            />
+            <TaskStatusChart distribution={data.task_status_distribution} />
+          </div>
 
-      {/* Charts: project overview + task status */}
-      <section className="dashboard-chart-grid section" aria-label="Project and task charts">
-        {config.showProjects && (
-          <ChartCard title="Project Overview" subtitle="Progress across active projects">
-            {loading
-              ? <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-                  {[1,2,3].map(i => <div key={i} className="skeleton skeleton-text w-full" style={{ height: 18 }} />)}
-                </div>
-              : projects.length > 0
-                ? <ProjectOverviewChart projects={projects} />
-                : <p className="caption" style={{ padding: 'var(--space-4) 0' }}>No projects found.</p>
-            }
-          </ChartCard>
-        )}
-        <ChartCard title="Task Status" subtitle="Current task distribution">
-          <TaskStatusChart tasks={loading ? [] : tasks} />
-        </ChartCard>
-      </section>
-
-      {/* Review queue — manager only */}
-      {config.showReviewQueue && reviewTasks.length > 0 && (
-        <section className="section" aria-label="Tasks awaiting review">
-          <ReviewQueue tasks={reviewTasks} />
-        </section>
-      )}
-
-      {/* Upcoming tasks + activity */}
-      <section className="dashboard-content-grid section" aria-label="Upcoming tasks and activity">
-
-        {/* Task list */}
-        <div className="card dashboard-upcoming-card">
-          <div className="card-header" style={cardHeaderStyle}>
-            <div className="card-header-left">
-              <h2 className="card-title">{config.taskLabel}</h2>
-              <p className="caption">{config.taskSubLabel}</p>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '1.5rem' }}>
+            <TeamWorkload workload={data.team_workload} />
+            <div id="pending-reviews-section">
+              <PendingReviews
+                reviews={data.pending_reviews}
+                onReviewSubmission={handleOpenReview}
+              />
             </div>
-            <button className="btn btn-secondary btn-sm" type="button">View all</button>
           </div>
-          <div className="dashboard-task-list" role="list">
-            {loadingTasks
-              ? <SkeletonRows count={4} />
-              : sortedTasks.length === 0
-                ? <p className="caption" style={{ padding: 'var(--space-4) 0' }}>No tasks found.</p>
-                : sortedTasks.slice(0, 5).map(task => (
-                    <TaskItem key={task.id} task={task} showAssignee={config.showAssignee} />
-                  ))
-            }
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '1.5rem' }}>
+            <UpcomingDeadlines
+              tasks={data.upcoming_deadlines}
+              onOpenTask={() => navigate('/tasks')}
+            />
+            <RecentActivity activity={data.recent_activity} />
           </div>
         </div>
+      )}
 
-        {/* Activity feed */}
-        {config.showActivity && (
-          <div className="card dashboard-activity-card">
-            <div className="card-header" style={cardHeaderStyle}>
-              <div className="card-header-left">
-                <h2 className="card-title">Recent Activity</h2>
-                <p className="caption">Latest updates from your team</p>
+      {/* D. ADMIN DASHBOARD */}
+      {effectiveView === 'admin' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '1.5rem' }}>
+            <PlatformOverview
+              overview={data.platform_overview}
+              onNavigate={navigate}
+            />
+            <TaskStatusChart distribution={data.task_status_distribution} />
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '1.5rem' }}>
+            <ProjectProgressCard
+              projects={data.projects}
+              onOpenProject={() => navigate('/projects')}
+            />
+            <UpcomingDeadlines
+              tasks={data.tasks}
+              onOpenTask={() => navigate('/tasks')}
+            />
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '1.5rem' }}>
+            <PendingReviews
+              reviews={data.pending_reviews}
+              onReviewSubmission={handleOpenReview}
+            />
+            <RecentActivity activity={data.recent_activity} />
+          </div>
+        </div>
+      )}
+
+      {/* ─────────────────────────────────────────────────────────────
+          MODALS
+      ───────────────────────────────────────────────────────────── */}
+
+      {/* 1. Create Task Modal */}
+      {createTaskOpen && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 999,
+            padding: '1rem',
+          }}
+        >
+          <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: '2rem', maxWidth: 480, width: '100%' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+              <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800 }}>Create New Task</h3>
+              <button
+                type="button"
+                onClick={() => setCreateTaskOpen(false)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#777184' }}
+              >
+                <IconClose size={20} />
+              </button>
+            </div>
+
+            {taskError && (
+              <div style={{ padding: '0.65rem', marginBottom: '1rem', backgroundColor: '#fee2e2', color: '#b91c1c', borderRadius: 8, fontSize: '0.85rem' }}>
+                {taskError}
               </div>
-            </div>
-            {loadingNotifs
-              ? <SkeletonRows count={4} />
-              : <ActivityFeed items={activity} maxItems={5} />
-            }
-          </div>
-        )}
+            )}
 
-      </section>
+            <form onSubmit={handleCreateTaskSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.3rem' }}>Task Title</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Implement authentication middleware"
+                  value={taskTitle}
+                  onChange={e => setTaskTitle(e.target.value)}
+                  style={{ width: '100%', padding: '0.65rem', borderRadius: 8, border: '1px solid #d0c6d8', boxSizing: 'border-box' }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.3rem' }}>Project</label>
+                <select
+                  value={taskProjectId}
+                  onChange={e => setTaskProjectId(e.target.value)}
+                  style={{ width: '100%', padding: '0.65rem', borderRadius: 8, border: '1px solid #d0c6d8', backgroundColor: '#fff' }}
+                >
+                  {allProjects.map(p => (
+                    <option key={p.id} value={p.id}>{p.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              {projectMembers.length > 0 && (
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.3rem' }}>Assignee</label>
+                  <select
+                    value={taskAssigneeId}
+                    onChange={e => setTaskAssigneeId(e.target.value)}
+                    style={{ width: '100%', padding: '0.65rem', borderRadius: 8, border: '1px solid #d0c6d8', backgroundColor: '#fff' }}
+                  >
+                    {projectMembers.map(m => (
+                      <option key={m.user_id} value={m.user_id}>{m.user?.name || `User #${m.user_id}`}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.3rem' }}>Priority</label>
+                  <select
+                    value={taskPriority}
+                    onChange={e => setTaskPriority(e.target.value)}
+                    style={{ width: '100%', padding: '0.65rem', borderRadius: 8, border: '1px solid #d0c6d8', backgroundColor: '#fff' }}
+                  >
+                    <option value="LOW">Low</option>
+                    <option value="MEDIUM">Medium</option>
+                    <option value="HIGH">High</option>
+                    <option value="URGENT">Urgent</option>
+                  </select>
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.3rem' }}>Due Date</label>
+                  <input
+                    type="date"
+                    value={taskDueDate}
+                    onChange={e => setTaskDueDate(e.target.value)}
+                    style={{ width: '100%', padding: '0.65rem', borderRadius: 8, border: '1px solid #d0c6d8', boxSizing: 'border-box' }}
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '0.5rem' }}>
+                <button
+                  type="button"
+                  onClick={() => setCreateTaskOpen(false)}
+                  style={{ padding: '0.6rem 1.25rem', borderRadius: 8, border: '1px solid #d0c6d8', background: '#fff', cursor: 'pointer' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={taskSubmitting}
+                  style={{ padding: '0.6rem 1.4rem', borderRadius: 8, border: 'none', background: '#26C6DA', color: '#1A1A2E', cursor: 'pointer', fontWeight: 700 }}
+                >
+                  {taskSubmitting ? 'Creating...' : 'Create Task'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* 2. Submit Work Modal */}
+      {submitWorkOpen && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 999,
+            padding: '1rem',
+          }}
+        >
+          <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: '2rem', maxWidth: 480, width: '100%' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+              <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800 }}>Submit Deliverable</h3>
+              <button
+                type="button"
+                onClick={() => setSubmitWorkOpen(false)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#777184' }}
+              >
+                <IconClose size={20} />
+              </button>
+            </div>
+
+            {submitError && (
+              <div style={{ padding: '0.65rem', marginBottom: '1rem', backgroundColor: '#fee2e2', color: '#b91c1c', borderRadius: 8, fontSize: '0.85rem' }}>
+                {submitError}
+              </div>
+            )}
+
+            <form onSubmit={handleSubmitWork} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.3rem' }}>Select Task</label>
+                <select
+                  required
+                  value={submitTaskId}
+                  onChange={e => setSubmitTaskId(e.target.value)}
+                  style={{ width: '100%', padding: '0.65rem', borderRadius: 8, border: '1px solid #d0c6d8', backgroundColor: '#fff' }}
+                >
+                  <option value="">-- Choose your assigned task --</option>
+                  {(data.tasks || []).map(t => (
+                    <option key={t.id} value={t.id}>{t.title} ({t.status})</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.3rem' }}>Deliverable File</label>
+                <input
+                  type="file"
+                  required
+                  onChange={e => setSubmitFile(e.target.files?.[0] || null)}
+                  style={{ width: '100%', padding: '0.5rem', borderRadius: 8, border: '1px solid #d0c6d8', boxSizing: 'border-box' }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.3rem' }}>Comments / Notes</label>
+                <textarea
+                  rows={3}
+                  placeholder="Summary of changes, pull request link, or deliverable details..."
+                  value={submitComment}
+                  onChange={e => setSubmitComment(e.target.value)}
+                  style={{ width: '100%', padding: '0.65rem', borderRadius: 8, border: '1px solid #d0c6d8', boxSizing: 'border-box', fontFamily: 'inherit' }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '0.5rem' }}>
+                <button
+                  type="button"
+                  onClick={() => setSubmitWorkOpen(false)}
+                  style={{ padding: '0.6rem 1.25rem', borderRadius: 8, border: '1px solid #d0c6d8', background: '#fff', cursor: 'pointer' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={submitLoading}
+                  style={{ padding: '0.6rem 1.4rem', borderRadius: 8, border: 'none', background: '#26C6DA', color: '#1A1A2E', cursor: 'pointer', fontWeight: 700 }}
+                >
+                  {submitLoading ? 'Submitting...' : 'Submit Work'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* 3. Review Submission Modal */}
+      {reviewModalOpen && selectedReviewItem && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 999,
+            padding: '1rem',
+          }}
+        >
+          <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: '2rem', maxWidth: 480, width: '100%' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+              <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800 }}>Review Deliverable</h3>
+              <button
+                type="button"
+                onClick={() => setReviewModalOpen(false)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#777184' }}
+              >
+                <IconClose size={20} />
+              </button>
+            </div>
+
+            <div style={{ padding: '0.85rem', backgroundColor: '#f8fafc', borderRadius: 8, marginBottom: '1rem', fontSize: '0.85rem' }}>
+              <div style={{ fontWeight: 700, color: '#1A1A2E' }}>{selectedReviewItem.task_title}</div>
+              <div style={{ color: '#777184', marginTop: 2 }}>By: {selectedReviewItem.submitter_name}</div>
+              {selectedReviewItem.comment && (
+                <div style={{ color: '#334155', marginTop: 6, fontStyle: 'italic' }}>
+                  "{selectedReviewItem.comment}"
+                </div>
+              )}
+            </div>
+
+            {reviewError && (
+              <div style={{ padding: '0.65rem', marginBottom: '1rem', backgroundColor: '#fee2e2', color: '#b91c1c', borderRadius: 8, fontSize: '0.85rem' }}>
+                {reviewError}
+              </div>
+            )}
+
+            <form onSubmit={handleSubmitReview} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.3rem' }}>Decision</label>
+                <div style={{ display: 'flex', gap: '1rem' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem', cursor: 'pointer' }}>
+                    <input
+                      type="radio"
+                      name="decision"
+                      value="APPROVED"
+                      checked={reviewStatus === 'APPROVED'}
+                      onChange={() => setReviewStatus('APPROVED')}
+                    />
+                    Approve Deliverable
+                  </label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem', cursor: 'pointer' }}>
+                    <input
+                      type="radio"
+                      name="decision"
+                      value="CHANGES_REQUESTED"
+                      checked={reviewStatus === 'CHANGES_REQUESTED'}
+                      onChange={() => setReviewStatus('CHANGES_REQUESTED')}
+                    />
+                    Request Changes
+                  </label>
+                </div>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.3rem' }}>Review Feedback / Notes</label>
+                <textarea
+                  rows={3}
+                  placeholder="Feedback on quality, tests, or changes requested..."
+                  value={reviewCommentText}
+                  onChange={e => setReviewCommentText(e.target.value)}
+                  style={{ width: '100%', padding: '0.65rem', borderRadius: 8, border: '1px solid #d0c6d8', boxSizing: 'border-box', fontFamily: 'inherit' }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '0.5rem' }}>
+                <button
+                  type="button"
+                  onClick={() => setReviewModalOpen(false)}
+                  style={{ padding: '0.6rem 1.25rem', borderRadius: 8, border: '1px solid #d0c6d8', background: '#fff', cursor: 'pointer' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={reviewLoading}
+                  style={{
+                    padding: '0.6rem 1.4rem',
+                    borderRadius: 8,
+                    border: 'none',
+                    background: reviewStatus === 'APPROVED' ? '#10b981' : '#f59e0b',
+                    color: '#fff',
+                    cursor: 'pointer',
+                    fontWeight: 700,
+                  }}
+                >
+                  {reviewLoading ? 'Submitting...' : 'Submit Decision'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
