@@ -9,7 +9,7 @@ require_roles     — factory that returns a dependency enforcing one or
 """
 from typing import Callable
 
-from fastapi import Cookie, Depends, HTTPException, status
+from fastapi import Cookie, Depends, Header, HTTPException, status
 from jose import JWTError
 from sqlalchemy.orm import Session
 
@@ -24,13 +24,14 @@ from app.models.user import User, UserRole
 
 def get_current_user(
     access_token: str | None = Cookie(default=None),
+    authorization: str | None = Header(default=None),
     db: Session = Depends(get_db),
 ) -> User:
     """
-    Validate the HTTP-only cookie and return the authenticated User.
+    Validate the HTTP-only cookie or Bearer authorization header and return the authenticated User.
 
     Raises:
-        401 — cookie absent, token invalid/expired, user not found
+        401 — token absent, token invalid/expired, user not found
         401 — user account is inactive
     """
     _unauth = HTTPException(
@@ -38,11 +39,18 @@ def get_current_user(
         detail="Not authenticated.",
     )
 
-    if access_token is None:
+    token = access_token
+    if not token and authorization:
+        if authorization.lower().startswith("bearer "):
+            token = authorization[7:].strip()
+        else:
+            token = authorization.strip()
+
+    if not token:
         raise _unauth
 
     try:
-        payload = decode_access_token(access_token)
+        payload = decode_access_token(token)
         user_id: str | None = payload.get("sub")
         if user_id is None:
             raise _unauth
