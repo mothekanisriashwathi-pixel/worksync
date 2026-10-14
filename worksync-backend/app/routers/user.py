@@ -21,10 +21,10 @@ router = APIRouter(
 )
 def get_users(
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_roles(UserRole.ADMIN)),
+    current_user: User = Depends(require_roles(UserRole.ADMIN, UserRole.MANAGER)),
 ):
     return db.scalars(
-        select(User).order_by(User.id)
+        select(User).where(User.is_active == True).order_by(User.id)
     ).all()
 
 
