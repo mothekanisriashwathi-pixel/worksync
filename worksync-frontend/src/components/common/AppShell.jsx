@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { useNavigate, useLocation } from 'react-router-dom'
 import Sidebar from './Sidebar'
 import Header from './Header'
 import {
@@ -8,23 +9,10 @@ import {
   IconTeam,
   IconSettings,
   IconClose,
-  IconMenu,
 } from './WorkSyncIcons'
 
 /**
- * AppShell — root layout component.
- *
- * Responsibilities:
- *  - Owns sidebar collapsed state (desktop)
- *  - Owns mobile nav drawer open state
- *  - Owns text-size preference (applies data-text-size to <html>)
- *  - Renders desktop sidebar, mobile drawer, header, and main content
- *  - Passes active page + navigate handler down to sidebar
- *
- * Props:
- *   activePage  {string}    — current page key
- *   onNavigate  {function}  — called with page key
- *   children    {ReactNode} — page content
+ * AppShell — root layout component with automatic react-router-dom navigation.
  */
 
 const PAGE_TITLES = {
@@ -43,13 +31,16 @@ const MOBILE_NAV_ITEMS = [
   { key: 'settings',  label: 'Settings',  Icon: IconSettings  },
 ]
 
-/* Read persisted preferences from localStorage */
 function readStorage(key, fallback) {
   try { return localStorage.getItem(key) ?? fallback } catch { return fallback }
 }
 
 export default function AppShell({ activePage, onNavigate, children }) {
-  /* Sidebar: default collapsed on tablet (≤1024px), expanded on desktop */
+  const navigate = useNavigate()
+  const location = useLocation()
+  const currentActivePage = activePage || location.pathname.replace(/^\//, '') || 'dashboard'
+
+  /* Sidebar collapsed state */
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
     const saved = readStorage('ws_sidebar_collapsed', null)
     if (saved !== null) return saved === 'true'
@@ -64,22 +55,19 @@ export default function AppShell({ activePage, onNavigate, children }) {
     readStorage('ws_text_size', 'default')
   )
 
-  /* Apply text size to <html> element */
   useEffect(() => {
     document.documentElement.setAttribute('data-text-size', textSize)
     localStorage.setItem('ws_text_size', textSize)
   }, [textSize])
 
-  /* Persist sidebar state */
   useEffect(() => {
     localStorage.setItem('ws_sidebar_collapsed', String(sidebarCollapsed))
   }, [sidebarCollapsed])
 
-  /* Auto-collapse sidebar on resize to tablet, restore on desktop */
   useEffect(() => {
     function handleResize() {
       if (window.innerWidth <= 768) {
-        /* Mobile: sidebar hidden via CSS, close drawer if open */
+        // mobile
       } else if (window.innerWidth <= 1024) {
         setSidebarCollapsed(true)
       }
@@ -88,7 +76,6 @@ export default function AppShell({ activePage, onNavigate, children }) {
     return () => window.removeEventListener('resize', handleResize)
   }, [])
 
-  /* Close mobile drawer on wider screens */
   useEffect(() => {
     function handleResize() {
       if (window.innerWidth > 768) setDrawerOpen(false)
@@ -97,7 +84,6 @@ export default function AppShell({ activePage, onNavigate, children }) {
     return () => window.removeEventListener('resize', handleResize)
   }, [])
 
-  /* Trap body scroll when drawer is open on mobile */
   useEffect(() => {
     document.body.style.overflow = drawerOpen ? 'hidden' : ''
     return () => { document.body.style.overflow = '' }
@@ -108,20 +94,23 @@ export default function AppShell({ activePage, onNavigate, children }) {
   }, [])
 
   const handleNavigate = useCallback((page) => {
-    onNavigate(page)
-    setDrawerOpen(false)   /* close mobile drawer on navigation */
-  }, [onNavigate])
+    if (typeof onNavigate === 'function') {
+      onNavigate(page)
+    } else {
+      navigate(`/${page}`)
+    }
+    setDrawerOpen(false)
+  }, [onNavigate, navigate])
 
-  const pageTitle = PAGE_TITLES[activePage] ?? 'WorkSync'
+  const pageTitle = PAGE_TITLES[currentActivePage] ?? 'WorkSync'
 
   return (
     <div className="app-shell">
-
-      {/* ── Desktop / tablet sidebar ── */}
+      {/* ── Desktop sidebar ── */}
       <Sidebar
         collapsed={sidebarCollapsed}
         onToggle={handleToggleSidebar}
-        activePage={activePage}
+        activePage={currentActivePage}
         onNavigate={handleNavigate}
       />
 
@@ -140,7 +129,6 @@ export default function AppShell({ activePage, onNavigate, children }) {
         aria-label="Mobile navigation"
         aria-hidden={!drawerOpen}
       >
-        {/* Drawer header */}
         <div className="sidebar-logo" style={{ justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
             <div className="sidebar-logo-mark">W</div>
@@ -156,15 +144,14 @@ export default function AppShell({ activePage, onNavigate, children }) {
           </button>
         </div>
 
-        {/* Drawer nav items */}
         <div className="sidebar-nav">
           <div className="sidebar-nav-group">
             {MOBILE_NAV_ITEMS.map(({ key, label, Icon }) => (
               <button
                 key={key}
-                className={`sidebar-nav-item${activePage === key ? ' active' : ''}`}
+                className={`sidebar-nav-item${currentActivePage === key ? ' active' : ''}`}
                 onClick={() => handleNavigate(key)}
-                aria-current={activePage === key ? 'page' : undefined}
+                aria-current={currentActivePage === key ? 'page' : undefined}
                 style={{ width: '100%', textAlign: 'left' }}
               >
                 <Icon size={20} className="sidebar-nav-icon" />
@@ -177,20 +164,13 @@ export default function AppShell({ activePage, onNavigate, children }) {
 
       {/* ── Main area: header + page content ── */}
       <div className={`main-wrapper${sidebarCollapsed ? ' sidebar-collapsed' : ''}`}>
-
         <Header
           pageTitle={pageTitle}
           onMenuClick={() => setDrawerOpen(true)}
           textSize={textSize}
           onTextSizeChange={setTextSize}
         />
-
-        <main
-          className="page-content"
-          id="main-content"
-          tabIndex={-1}
-          aria-label="Main content"
-        >
+        <main className="page-content">
           {children}
         </main>
       </div>

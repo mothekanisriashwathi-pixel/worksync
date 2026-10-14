@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   IconMenu,
   IconSearch,
@@ -9,24 +10,10 @@ import {
   IconLogout,
   IconClose,
 } from './WorkSyncIcons'
+import { useAuth } from '../../context/AuthContext'
+import { logout } from '../../api/authApi'
 
-/**
- * Header — sticky top bar.
- *
- * Top-right: search · notifications · user avatar → profile menu
- * User profile is NEVER in the sidebar.
- *
- * Text size / Appearance is accessible via Account Settings → Appearance,
- * not from this dropdown.
- *
- * Props:
- *   pageTitle       {string}
- *   onMenuClick     {function}  — opens mobile nav drawer
- *   textSize        {string}    — 'small'|'default'|'large'|'xlarge'
- *   onTextSizeChange{function}  — passed through; used by Settings page
- */
-
-const DEMO_NOTIFICATIONS = [
+const INITIAL_NOTIFICATIONS = [
   { id: 1, message: 'Alex assigned you a new task: "Update API docs"', time: '2 min ago', unread: true },
   { id: 2, message: 'Jordan left a comment on "Dashboard redesign"', time: '18 min ago', unread: true },
   { id: 3, message: 'Sprint 4 project deadline is tomorrow', time: '1 hr ago', unread: true },
@@ -35,15 +22,25 @@ const DEMO_NOTIFICATIONS = [
 ]
 
 export default function Header({ pageTitle, onMenuClick, textSize, onTextSizeChange }) {
-  const [notifOpen, setNotifOpen]       = useState(false)
-  const [profileOpen, setProfileOpen]   = useState(false)
-  const [searchOpen, setSearchOpen]     = useState(false)
-  const [searchValue, setSearchValue]   = useState('')
+  const { user, clearUser } = useAuth()
+  const navigate = useNavigate()
+
+  const [notifications, setNotifications] = useState(INITIAL_NOTIFICATIONS)
+  const [notifOpen, setNotifOpen]         = useState(false)
+  const [profileOpen, setProfileOpen]     = useState(false)
+  const [searchOpen, setSearchOpen]       = useState(false)
+  const [searchValue, setSearchValue]     = useState('')
+  const [helpOpen, setHelpOpen]           = useState(false)
 
   const notifRef   = useRef(null)
   const profileRef = useRef(null)
 
-  const unreadCount = DEMO_NOTIFICATIONS.filter(n => n.unread).length
+  const unreadCount = notifications.filter(n => n.unread).length
+
+  // Calculate initials from user name
+  const initials = user?.name
+    ? user.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
+    : 'SA'
 
   /* Close dropdowns when clicking outside */
   useEffect(() => {
@@ -66,11 +63,34 @@ export default function Header({ pageTitle, onMenuClick, textSize, onTextSizeCha
         setNotifOpen(false)
         setProfileOpen(false)
         setSearchOpen(false)
+        setHelpOpen(false)
       }
     }
     document.addEventListener('keydown', handleKey)
     return () => document.removeEventListener('keydown', handleKey)
   }, [])
+
+  async function handleLogout() {
+    try {
+      await logout()
+    } catch {
+      // ignore network errors
+    } finally {
+      clearUser()
+      navigate('/login')
+    }
+  }
+
+  function handleMarkAllRead() {
+    setNotifications(prev => prev.map(n => ({ ...n, unread: false })))
+  }
+
+  function handleSearchSubmit(e) {
+    if (e.key === 'Enter' && searchValue.trim()) {
+      navigate(`/tasks?search=${encodeURIComponent(searchValue.trim())}`)
+      setSearchOpen(false)
+    }
+  }
 
   return (
     <header className="header">
@@ -96,12 +116,13 @@ export default function Header({ pageTitle, onMenuClick, textSize, onTextSizeCha
               <IconSearch size={16} className="search-icon" />
               <input
                 className="input input-search"
-                placeholder="Search tasks, projects, people…"
+                placeholder="Search tasks, projects, people… (press Enter)"
                 value={searchValue}
                 onChange={e => setSearchValue(e.target.value)}
+                onKeyDown={handleSearchSubmit}
                 autoFocus
                 aria-label="Search"
-                style={{ width: 240 }}
+                style={{ width: 260 }}
               />
               <button
                 className="btn-icon"
@@ -140,24 +161,29 @@ export default function Header({ pageTitle, onMenuClick, textSize, onTextSizeCha
           </button>
 
           {notifOpen && (
-            <div className="notification-panel" role="dialog" aria-label="Notifications">
+            <div className="notification-panel" role="region" aria-label="Notifications panel">
               <div className="notification-panel-header">
-                <span className="card-title" style={{ fontSize: 'var(--fs-base)' }}>
-                  Notifications
-                </span>
+                <span className="notification-panel-title">Notifications</span>
                 {unreadCount > 0 && (
-                  <button className="btn btn-tertiary btn-sm">
+                  <button
+                    className="btn btn-tertiary btn-sm"
+                    onClick={handleMarkAllRead}
+                  >
                     Mark all read
                   </button>
                 )}
               </div>
 
               <ul className="notification-list" role="list">
-                {DEMO_NOTIFICATIONS.map(n => (
+                {notifications.map(n => (
                   <li
                     key={n.id}
                     className={`notification-item${n.unread ? ' unread' : ''}`}
                     role="listitem"
+                    onClick={() => {
+                      setNotifications(prev => prev.map(item => item.id === n.id ? { ...item, unread: false } : item))
+                    }}
+                    style={{ cursor: 'pointer' }}
                   >
                     {n.unread && (
                       <span className="notification-item-dot" aria-hidden="true" />
@@ -175,8 +201,15 @@ export default function Header({ pageTitle, onMenuClick, textSize, onTextSizeCha
                 borderTop: '1px solid var(--border-color)',
                 textAlign: 'center',
               }}>
-                <button className="btn btn-tertiary btn-sm" style={{ width: '100%' }}>
-                  View all notifications
+                <button
+                  className="btn btn-tertiary btn-sm"
+                  style={{ width: '100%' }}
+                  onClick={() => {
+                    handleMarkAllRead()
+                    setNotifOpen(false)
+                  }}
+                >
+                  Clear all notifications
                 </button>
               </div>
             </div>
@@ -193,7 +226,7 @@ export default function Header({ pageTitle, onMenuClick, textSize, onTextSizeCha
             title="My profile"
             style={{ cursor: 'pointer', border: 'none' }}
           >
-            SA
+            {initials}
           </button>
 
           {profileOpen && (
@@ -201,25 +234,46 @@ export default function Header({ pageTitle, onMenuClick, textSize, onTextSizeCha
               {/* User info */}
               <div className="profile-menu-header">
                 <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
-                  <div className="avatar avatar-md" aria-hidden="true">SA</div>
+                  <div className="avatar avatar-md" aria-hidden="true">{initials}</div>
                   <div>
-                    <p className="profile-menu-name">Sri Ashwathi</p>
-                    <p className="profile-menu-role">Team Manager</p>
+                    <p className="profile-menu-name">{user?.name || 'Sri Ashwathi'}</p>
+                    <p className="profile-menu-role">{user?.role ? `${user.role.charAt(0) + user.role.slice(1).toLowerCase()} Account` : 'Team Manager'}</p>
                   </div>
                 </div>
               </div>
 
               {/* Menu items */}
               <div role="none">
-                <button className="profile-menu-item" role="menuitem">
+                <button
+                  className="profile-menu-item"
+                  role="menuitem"
+                  onClick={() => {
+                    setProfileOpen(false)
+                    navigate('/settings')
+                  }}
+                >
                   <IconProfile size={16} />
                   My Profile
                 </button>
-                <button className="profile-menu-item" role="menuitem">
+                <button
+                  className="profile-menu-item"
+                  role="menuitem"
+                  onClick={() => {
+                    setProfileOpen(false)
+                    navigate('/settings')
+                  }}
+                >
                   <IconSettings size={16} />
                   Account Settings
                 </button>
-                <button className="profile-menu-item" role="menuitem">
+                <button
+                  className="profile-menu-item"
+                  role="menuitem"
+                  onClick={() => {
+                    setProfileOpen(false)
+                    setHelpOpen(true)
+                  }}
+                >
                   <IconHelp size={16} />
                   Help &amp; Support
                 </button>
@@ -228,7 +282,11 @@ export default function Header({ pageTitle, onMenuClick, textSize, onTextSizeCha
               <div className="profile-menu-divider" role="separator" />
 
               <div role="none">
-                <button className="profile-menu-item danger" role="menuitem">
+                <button
+                  className="profile-menu-item danger"
+                  role="menuitem"
+                  onClick={handleLogout}
+                >
                   <IconLogout size={16} />
                   Log Out
                 </button>
@@ -237,6 +295,43 @@ export default function Header({ pageTitle, onMenuClick, textSize, onTextSizeCha
           )}
         </div>
       </div>
+
+      {/* Help Modal */}
+      {helpOpen && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.45)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000,
+        }}>
+          <div style={{
+            backgroundColor: '#ffffff',
+            borderRadius: 12,
+            padding: '2rem',
+            maxWidth: 460,
+            width: '90%',
+            boxShadow: '0 20px 40px rgba(0,0,0,0.2)',
+          }}>
+            <h3 style={{ marginTop: 0, marginBottom: '0.75rem', fontSize: '1.25rem', fontWeight: 700 }}>
+              WorkSync Help & Support
+            </h3>
+            <p style={{ color: '#4e4059', fontSize: '0.925rem', lineHeight: 1.5, marginBottom: '1.5rem' }}>
+              Welcome to WorkSync! Use the sidebar navigation on the left to manage Projects, track Tasks, and view Team activity.
+              For API endpoints, check out the FastAPI docs at <a href="http://127.0.0.1:8000/docs" target="_blank" rel="noreferrer" style={{ color: '#00acc1', fontWeight: 700 }}>/docs</a>.
+            </p>
+            <button
+              className="btn btn-primary"
+              style={{ width: '100%', padding: '0.75rem', borderRadius: 8, backgroundColor: '#26C6DA', color: '#1A1A2E', fontWeight: 700 }}
+              onClick={() => setHelpOpen(false)}
+            >
+              Got it, close
+            </button>
+          </div>
+        </div>
+      )}
     </header>
   )
 }
