@@ -1,33 +1,40 @@
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { lazy, Suspense } from 'react'
+import { Routes, Route, Navigate, Outlet } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
+import { ThemeProvider } from './context/ThemeContext'
 import AppShell from './components/common/AppShell'
-import Dashboard from './pages/manager/Dashboard'
-import LandingPage from './pages/landing/LandingPage'
-import LoginPage from './pages/auth/LoginPage'
-import RegisterPage from './pages/auth/RegisterPage'
-import ProjectsPage from './pages/projects/ProjectsPage'
-import TasksPage from './pages/tasks/TasksPage'
-import TeamPage from './pages/team/TeamPage'
-import SettingsPage from './pages/settings/SettingsPage'
+import { Skeleton } from './components/ui/Primitives'
 
-/* ── Loading spinner ──────────────────────────────────────── */
+// Route-level code splitting keeps each page (and the auth-page Aurora effect) out of the initial bundle.
+const LandingPage = lazy(() => import('./pages/landing/LandingPage'))
+const LoginPage = lazy(() => import('./pages/auth/LoginPage'))
+const RegisterPage = lazy(() => import('./pages/auth/RegisterPage'))
+const Dashboard = lazy(() => import('./pages/manager/Dashboard'))
+const ProjectsPage = lazy(() => import('./pages/projects/ProjectsPage'))
+const ProjectWorkspacePage = lazy(() => import('./pages/projects/ProjectWorkspacePage'))
+const TasksPage = lazy(() => import('./pages/tasks/TasksPage'))
+const SubmissionsPage = lazy(() => import('./pages/submissions/SubmissionsPage'))
+const TeamPage = lazy(() => import('./pages/team/TeamPage'))
+const SettingsPage = lazy(() => import('./pages/settings/SettingsPage'))
+
 function LoadingScreen() {
   return (
-    <div style={{
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      height: '100vh', background: 'var(--surface-page)',
-    }}>
-      <span className="spinner spinner-lg" aria-label="Loading…" />
+    <div style={{ display: 'grid', placeItems: 'center', height: '100vh', background: 'var(--surface-page)' }}>
+      <span className="spinner spinner-lg" role="status" aria-label="Loading" />
     </div>
   )
 }
 
-/* ── Route guards ─────────────────────────────────────────── */
-function ProtectedRoute({ children }) {
+/** One persistent shell for every signed-in page; only the outlet changes on navigation. */
+function ProtectedLayout() {
   const { user, loading } = useAuth()
   if (loading) return <LoadingScreen />
   if (!user) return <Navigate to="/login" replace />
-  return children
+  return (
+    <AppShell>
+      <Suspense fallback={<Skeleton rows={6} />}><Outlet /></Suspense>
+    </AppShell>
+  )
 }
 
 function PublicOnlyRoute({ children }) {
@@ -37,64 +44,36 @@ function PublicOnlyRoute({ children }) {
   return children
 }
 
-/* ── Inner app — has access to AuthContext ──────────────────── */
 function AppInner() {
-  const { user, role } = useAuth()
-
-  const userName = user?.name ?? 'there'
-  const dashboardRole = role ? role.toLowerCase() : 'manager'
-
   return (
-    <Routes>
-      {/* Public */}
-      <Route path="/" element={<LandingPage />} />
-      <Route path="/login" element={
-        <PublicOnlyRoute><LoginPage /></PublicOnlyRoute>
-      } />
-      <Route path="/register" element={
-        <PublicOnlyRoute><RegisterPage /></PublicOnlyRoute>
-      } />
+    <Suspense fallback={<LoadingScreen />}>
+      <Routes>
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/login" element={<PublicOnlyRoute><LoginPage /></PublicOnlyRoute>} />
+        <Route path="/register" element={<PublicOnlyRoute><RegisterPage /></PublicOnlyRoute>} />
 
-      {/* Protected */}
-      <Route path="/dashboard" element={
-        <ProtectedRoute>
-          <AppShell>
-            <Dashboard role={dashboardRole} user={{ name: userName }} />
-          </AppShell>
-        </ProtectedRoute>
-      } />
-      <Route path="/projects" element={
-        <ProtectedRoute>
-          <AppShell><ProjectsPage /></AppShell>
-        </ProtectedRoute>
-      } />
-      <Route path="/tasks" element={
-        <ProtectedRoute>
-          <AppShell><TasksPage /></AppShell>
-        </ProtectedRoute>
-      } />
-      <Route path="/team" element={
-        <ProtectedRoute>
-          <AppShell><TeamPage /></AppShell>
-        </ProtectedRoute>
-      } />
-      <Route path="/settings" element={
-        <ProtectedRoute>
-          <AppShell><SettingsPage /></AppShell>
-        </ProtectedRoute>
-      } />
+        <Route element={<ProtectedLayout />}>
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/projects" element={<ProjectsPage />} />
+          <Route path="/projects/:projectId" element={<ProjectWorkspacePage />} />
+          <Route path="/tasks" element={<TasksPage />} />
+          <Route path="/submissions" element={<SubmissionsPage />} />
+          <Route path="/team" element={<TeamPage />} />
+          <Route path="/settings" element={<SettingsPage />} />
+        </Route>
 
-      {/* Fallback */}
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </Suspense>
   )
 }
 
-/* ── Root export — wraps everything in AuthProvider ─────────── */
 export default function App() {
   return (
-    <AuthProvider>
-      <AppInner />
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <AppInner />
+      </AuthProvider>
+    </ThemeProvider>
   )
 }
