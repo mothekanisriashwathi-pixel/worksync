@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { AuroraBackdrop } from '../../components/common/AuthLayout'
 import {
   IconDashboard,
   IconProjects,
@@ -12,11 +13,12 @@ export default function LandingPage() {
   return (
     <div style={{
       minHeight: '100vh',
-      backgroundColor: '#1A1A2E',
+      backgroundColor: '#080b12',
       color: '#ffffff',
       display: 'flex',
       flexDirection: 'column',
-      fontFamily: "'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif",
+      fontFamily: 'var(--font-family)',
+      position: 'relative',
     }}>
       {/* ── Navigation ────────────────────────────────────────── */}
       <nav style={{
@@ -24,8 +26,8 @@ export default function LandingPage() {
         top: 0,
         zIndex: 50,
         backdropFilter: 'blur(16px)',
-        backgroundColor: 'rgba(26, 26, 46, 0.85)',
-        borderBottom: '1px solid #2E3A4B',
+        backgroundColor: 'rgba(8, 11, 18, 0.8)',
+        borderBottom: '1px solid #1b2230',
         padding: '1rem 2rem',
         display: 'flex',
         alignItems: 'center',
@@ -36,14 +38,14 @@ export default function LandingPage() {
             width: 40,
             height: 40,
             borderRadius: '10px',
-            background: 'linear-gradient(135deg, #26C6DA 0%, #2E3A4B 100%)',
+            background: 'linear-gradient(135deg, #22d3ee 0%, #1b2230 100%)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            color: '#1A1A2E',
+            color: '#080b12',
             fontWeight: 800,
             fontSize: '1.35rem',
-            boxShadow: '0 4px 14px rgba(38, 198, 218, 0.35)',
+            boxShadow: '0 4px 14px rgba(34, 211, 238, 0.35)',
           }}>
             W
           </div>
@@ -51,7 +53,7 @@ export default function LandingPage() {
             fontSize: '1.45rem',
             fontWeight: 800,
             letterSpacing: '-0.02em',
-            background: 'linear-gradient(135deg, #ffffff 0%, #26C6DA 100%)',
+            background: 'linear-gradient(135deg, #ffffff 0%, #22d3ee 100%)',
             WebkitBackgroundClip: 'text',
             WebkitTextFillColor: 'transparent',
           }}>
@@ -67,10 +69,10 @@ export default function LandingPage() {
               borderRadius: '8px',
               fontSize: '0.925rem',
               fontWeight: 700,
-              color: '#B0BEC5',
+              color: '#a3acbb',
               textDecoration: 'none',
               transition: 'all 0.2s ease',
-              border: '1px solid #2E3A4B',
+              border: '1px solid #1b2230',
             }}
           >
             Sign In
@@ -83,10 +85,10 @@ export default function LandingPage() {
               borderRadius: '8px',
               fontSize: '0.925rem',
               fontWeight: 700,
-              color: '#1A1A2E',
-              backgroundColor: '#26C6DA',
+              color: '#080b12',
+              backgroundColor: '#22d3ee',
               textDecoration: 'none',
-              boxShadow: '0 4px 16px rgba(38, 198, 218, 0.4)',
+              boxShadow: '0 4px 16px rgba(34, 211, 238, 0.4)',
               transition: 'all 0.2s ease',
             }}
           >
@@ -95,8 +97,13 @@ export default function LandingPage() {
         </div>
       </nav>
 
+      {/* Ambient React Bits Aurora behind the hero (static gradient under reduced motion / small screens) */}
+      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 720, zIndex: 0, maskImage: 'linear-gradient(#000 55%, transparent)', WebkitMaskImage: 'linear-gradient(#000 55%, transparent)' }}>
+        <AuroraBackdrop opacity={0.6} />
+      </div>
+
       {/* ── Hero Section ───────────────────────────────────────── */}
-      <main style={{ flex: 1, padding: '4rem 1.5rem', maxWidth: 1200, margin: '0 auto', width: '100%' }}>
+      <main style={{ flex: 1, padding: '4rem 1.5rem', maxWidth: 1200, margin: '0 auto', width: '100%', position: 'relative', zIndex: 1 }}>
         <div style={{ textAlign: 'center', maxWidth: 820, margin: '0 auto 4rem auto' }}>
           <div style={{
             display: 'inline-flex',
@@ -104,15 +111,14 @@ export default function LandingPage() {
             gap: '0.5rem',
             padding: '0.4rem 1rem',
             borderRadius: '999px',
-            backgroundColor: 'rgba(38, 198, 218, 0.12)',
-            border: '1px solid rgba(38, 198, 218, 0.3)',
-            color: '#26C6DA',
+            backgroundColor: 'rgba(34, 211, 238, 0.12)',
+            border: '1px solid rgba(34, 211, 238, 0.3)',
+            color: '#22d3ee',
             fontSize: '0.85rem',
             fontWeight: 700,
             marginBottom: '1.5rem',
           }}>
-            <span style={{ fontSize: '1rem' }}>⚡</span>
-            <span>FinTech Midnight Edition • Space Grotesk Architecture</span>
+            <span>Projects · Tasks · Reviews · GitHub</span>
           </div>
 
           <h1 style={{
@@ -125,7 +131,7 @@ export default function LandingPage() {
           }}>
             Sync Your Teams.{' '}
             <span style={{
-              background: 'linear-gradient(135deg, #26C6DA 0%, #80deea 100%)',
+              background: 'linear-gradient(135deg, #22d3ee 0%, #80deea 100%)',
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
             }}>
@@ -135,7 +141,7 @@ export default function LandingPage() {
 
           <p style={{
             fontSize: '1.2rem',
-            color: '#B0BEC5',
+            color: '#a3acbb',
             lineHeight: 1.6,
             marginBottom: '2.5rem',
             maxWidth: 680,
@@ -160,14 +166,14 @@ export default function LandingPage() {
                 borderRadius: '10px',
                 fontSize: '1.05rem',
                 fontWeight: 700,
-                color: '#1A1A2E',
-                backgroundColor: '#26C6DA',
+                color: '#080b12',
+                backgroundColor: '#22d3ee',
                 textDecoration: 'none',
-                boxShadow: '0 6px 24px rgba(38, 198, 218, 0.45)',
+                boxShadow: '0 6px 24px rgba(34, 211, 238, 0.45)',
                 transition: 'all 0.2s ease',
               }}
             >
-              Start Free Trial →
+              Create an account →
             </Link>
 
             <Link
@@ -181,8 +187,8 @@ export default function LandingPage() {
                 fontSize: '1.05rem',
                 fontWeight: 700,
                 color: '#ffffff',
-                backgroundColor: '#2E3A4B',
-                border: '1px solid #3d4c60',
+                backgroundColor: '#1b2230',
+                border: '1px solid #2a3344',
                 textDecoration: 'none',
                 boxShadow: '0 4px 14px rgba(0, 0, 0, 0.2)',
                 transition: 'all 0.2s ease',
@@ -195,17 +201,17 @@ export default function LandingPage() {
 
         {/* ── Interactive Preview Card ─────────────────────────── */}
         <div style={{
-          backgroundColor: '#2E3A4B',
+          backgroundColor: '#1b2230',
           borderRadius: '16px',
-          border: '1px solid #3d4c60',
-          boxShadow: '0 25px 50px rgba(0, 0, 0, 0.4), 0 0 30px rgba(38, 198, 218, 0.1)',
+          border: '1px solid #2a3344',
+          boxShadow: '0 25px 50px rgba(0, 0, 0, 0.4), 0 0 30px rgba(34, 211, 238, 0.1)',
           overflow: 'hidden',
           marginBottom: '4.5rem',
         }}>
           <div style={{
-            backgroundColor: '#1A1A2E',
+            backgroundColor: '#080b12',
             padding: '0.85rem 1.5rem',
-            borderBottom: '1px solid #3d4c60',
+            borderBottom: '1px solid #2a3344',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
@@ -213,81 +219,77 @@ export default function LandingPage() {
             <div style={{ display: 'flex', gap: '8px' }}>
               <span style={{ width: 11, height: 11, borderRadius: '50%', backgroundColor: '#ff5f56' }} />
               <span style={{ width: 11, height: 11, borderRadius: '50%', backgroundColor: '#ffbd2e' }} />
-              <span style={{ width: 11, height: 11, borderRadius: '50%', backgroundColor: '#26C6DA' }} />
+              <span style={{ width: 11, height: 11, borderRadius: '50%', backgroundColor: '#22d3ee' }} />
             </div>
-            <span style={{ fontSize: '0.85rem', color: '#B0BEC5', fontWeight: 600 }}>
-              WorkSync Workspace Preview • FinTech Midnight Active
+            <span style={{ fontSize: '0.85rem', color: '#a3acbb', fontWeight: 600 }}>
+              How a WorkSync project moves
             </span>
             <div style={{ width: 40 }} />
           </div>
 
-          <div style={{ padding: '2.25rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.75rem' }}>
+          <div style={{ padding: '2.25rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(280px, 100%), 1fr))', gap: '1.75rem' }}>
             <div style={{
-              backgroundColor: '#1A1A2E',
+              backgroundColor: '#080b12',
               padding: '1.65rem',
               borderRadius: '12px',
-              border: '1px solid #3d4c60',
+              border: '1px solid #2a3344',
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.25rem' }}>
-                <div style={{ padding: '8px', borderRadius: '8px', backgroundColor: 'rgba(38, 198, 218, 0.15)', color: '#26C6DA' }}>
+                <div style={{ padding: '8px', borderRadius: '8px', backgroundColor: 'rgba(34, 211, 238, 0.15)', color: '#22d3ee' }}>
                   <IconProjects size={22} />
                 </div>
                 <div>
-                  <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: 700, color: '#ffffff' }}>FinTech Core Platform</h4>
-                  <span style={{ fontSize: '0.8rem', color: '#B0BEC5' }}>Enterprise Architecture</span>
+                  <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: 700, color: '#ffffff' }}>Plan</h4>
+                  <span style={{ fontSize: '0.8rem', color: '#a3acbb' }}>Projects, teams and deadlines</span>
                 </div>
               </div>
-              <div style={{ marginBottom: '0.6rem', display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
-                <span style={{ color: '#B0BEC5' }}>Progress</span>
-                <span style={{ fontWeight: 700, color: '#26C6DA' }}>84%</span>
-              </div>
-              <div style={{ height: 8, borderRadius: 4, backgroundColor: '#2E3A4B', overflow: 'hidden' }}>
-                <div style={{ width: '84%', height: '100%', backgroundColor: '#26C6DA', boxShadow: '0 0 10px #26C6DA' }} />
-              </div>
+              <p style={{ margin: 0, fontSize: '0.85rem', color: '#a3acbb', lineHeight: 1.5 }}>
+                Leads create projects for their team, assign tasks with priorities and due dates, and progress is calculated from completed work.
+              </p>
             </div>
 
             <div style={{
-              backgroundColor: '#1A1A2E',
+              backgroundColor: '#080b12',
               padding: '1.65rem',
               borderRadius: '12px',
-              border: '1px solid #3d4c60',
+              border: '1px solid #2a3344',
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.25rem' }}>
-                <div style={{ padding: '8px', borderRadius: '8px', backgroundColor: 'rgba(38, 198, 218, 0.15)', color: '#26C6DA' }}>
+                <div style={{ padding: '8px', borderRadius: '8px', backgroundColor: 'rgba(34, 211, 238, 0.15)', color: '#22d3ee' }}>
                   <IconTasks size={22} />
                 </div>
                 <div>
-                  <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: 700, color: '#ffffff' }}>Sprint Workflows</h4>
-                  <span style={{ fontSize: '0.8rem', color: '#B0BEC5' }}>18 Active • 0 Overdue</span>
+                  <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: 700, color: '#ffffff' }}>Submit &amp; review</h4>
+                  <span style={{ fontSize: '0.8rem', color: '#a3acbb' }}>Versioned deliverables</span>
                 </div>
               </div>
               <div style={{ display: 'flex', gap: '0.6rem' }}>
-                <span style={{ padding: '4px 10px', borderRadius: 4, backgroundColor: 'rgba(38, 198, 218, 0.15)', color: '#26C6DA', fontSize: '0.8rem', fontWeight: 700 }}>
-                  ✓ 12 Completed
+                <span style={{ padding: '4px 10px', borderRadius: 4, backgroundColor: 'rgba(34, 211, 238, 0.15)', color: '#22d3ee', fontSize: '0.8rem', fontWeight: 700 }}>
+                  Submitted → In Review
                 </span>
                 <span style={{ padding: '4px 10px', borderRadius: 4, backgroundColor: 'rgba(245, 158, 11, 0.15)', color: '#f59e0b', fontSize: '0.8rem', fontWeight: 700 }}>
-                  ⏳ 6 In Review
+                  Approved / Changes requested
                 </span>
               </div>
             </div>
 
             <div style={{
-              backgroundColor: '#1A1A2E',
+              backgroundColor: '#080b12',
               padding: '1.65rem',
               borderRadius: '12px',
-              border: '1px solid #3d4c60',
+              border: '1px solid #2a3344',
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.25rem' }}>
-                <div style={{ padding: '8px', borderRadius: '8px', backgroundColor: 'rgba(38, 198, 218, 0.15)', color: '#26C6DA' }}>
+                <div style={{ padding: '8px', borderRadius: '8px', backgroundColor: 'rgba(34, 211, 238, 0.15)', color: '#22d3ee' }}>
                   <IconTeam size={22} />
                 </div>
                 <div>
-                  <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: 700, color: '#ffffff' }}>Role Access Control</h4>
-                  <span style={{ fontSize: '0.8rem', color: '#B0BEC5' }}>Admin • Project Lead • Person</span>
+                  <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: 700, color: '#ffffff' }}>Role-based access</h4>
+                  <span style={{ fontSize: '0.8rem', color: '#a3acbb' }}>Admin · Manager / lead · Member</span>
                 </div>
               </div>
-              <p style={{ margin: 0, fontSize: '0.85rem', color: '#B0BEC5', lineHeight: 1.5 }}>
-                Three distinct access personas configured out of the box with JWT sessions.
+              <p style={{ margin: 0, fontSize: '0.85rem', color: '#a3acbb', lineHeight: 1.5 }}>
+                Every request is authorized on the server: members see their teams, leads and managers review their projects, admins oversee everything.
               </p>
             </div>
           </div>
@@ -296,66 +298,66 @@ export default function LandingPage() {
         {/* ── Feature Highlights Grid ─────────────────────────── */}
         <div style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(min(250px, 100%), 1fr))',
           gap: '1.5rem',
           marginBottom: '4.5rem',
         }}>
           <div style={{
             padding: '1.75rem',
-            backgroundColor: '#2E3A4B',
+            backgroundColor: '#1b2230',
             borderRadius: '14px',
-            border: '1px solid #3d4c60',
+            border: '1px solid #2a3344',
           }}>
-            <div style={{ color: '#26C6DA', marginBottom: '1rem' }}>
+            <div style={{ color: '#22d3ee', marginBottom: '1rem' }}>
               <IconDashboard size={30} />
             </div>
             <h3 style={{ fontSize: '1.15rem', fontWeight: 700, marginBottom: '0.5rem', color: '#ffffff' }}>Unified Dashboard</h3>
-            <p style={{ fontSize: '0.925rem', color: '#B0BEC5', lineHeight: 1.5 }}>
-              Centralized view of project completion percentages, task distribution donut charts, and live activity.
+            <p style={{ fontSize: '0.925rem', color: '#a3acbb', lineHeight: 1.5 }}>
+              Role-aware view of your projects, task status, upcoming deadlines, review queue and recent activity.
             </p>
           </div>
 
           <div style={{
             padding: '1.75rem',
-            backgroundColor: '#2E3A4B',
+            backgroundColor: '#1b2230',
             borderRadius: '14px',
-            border: '1px solid #3d4c60',
+            border: '1px solid #2a3344',
           }}>
-            <div style={{ color: '#26C6DA', marginBottom: '1rem' }}>
+            <div style={{ color: '#22d3ee', marginBottom: '1rem' }}>
               <IconTasks size={30} />
             </div>
             <h3 style={{ fontSize: '1.15rem', fontWeight: 700, marginBottom: '0.5rem', color: '#ffffff' }}>Kanban Management</h3>
-            <p style={{ fontSize: '0.925rem', color: '#B0BEC5', lineHeight: 1.5 }}>
+            <p style={{ fontSize: '0.925rem', color: '#a3acbb', lineHeight: 1.5 }}>
               Dynamic column boards across To Do, In Progress, In Review, and Completed with instant status switching.
             </p>
           </div>
 
           <div style={{
             padding: '1.75rem',
-            backgroundColor: '#2E3A4B',
+            backgroundColor: '#1b2230',
             borderRadius: '14px',
-            border: '1px solid #3d4c60',
+            border: '1px solid #2a3344',
           }}>
-            <div style={{ color: '#26C6DA', marginBottom: '1rem' }}>
+            <div style={{ color: '#22d3ee', marginBottom: '1rem' }}>
               <IconNotifications size={30} />
             </div>
             <h3 style={{ fontSize: '1.15rem', fontWeight: 700, marginBottom: '0.5rem', color: '#ffffff' }}>Live Notifications</h3>
-            <p style={{ fontSize: '0.925rem', color: '#B0BEC5', lineHeight: 1.5 }}>
+            <p style={{ fontSize: '0.925rem', color: '#a3acbb', lineHeight: 1.5 }}>
               Automated notifications for task assignments, submissions, approvals, and team milestone updates.
             </p>
           </div>
 
           <div style={{
             padding: '1.75rem',
-            backgroundColor: '#2E3A4B',
+            backgroundColor: '#1b2230',
             borderRadius: '14px',
-            border: '1px solid #3d4c60',
+            border: '1px solid #2a3344',
           }}>
-            <div style={{ color: '#26C6DA', marginBottom: '1rem' }}>
+            <div style={{ color: '#22d3ee', marginBottom: '1rem' }}>
               <IconCheck size={30} />
             </div>
             <h3 style={{ fontSize: '1.15rem', fontWeight: 700, marginBottom: '0.5rem', color: '#ffffff' }}>Enterprise Security</h3>
-            <p style={{ fontSize: '0.925rem', color: '#B0BEC5', lineHeight: 1.5 }}>
+            <p style={{ fontSize: '0.925rem', color: '#a3acbb', lineHeight: 1.5 }}>
               HTTP-only cookie exchange, bcrypt password hashing, CORS protection, and SQLite/MySQL backends.
             </p>
           </div>
@@ -363,17 +365,17 @@ export default function LandingPage() {
 
         {/* ── Call To Action Banner ────────────────────────────── */}
         <div style={{
-          background: 'linear-gradient(135deg, #2E3A4B 0%, #1A1A2E 100%)',
+          background: 'linear-gradient(135deg, #1b2230 0%, #080b12 100%)',
           borderRadius: '16px',
-          border: '1px solid #3d4c60',
+          border: '1px solid #2a3344',
           padding: '3.5rem 2rem',
           textAlign: 'center',
           boxShadow: '0 15px 35px rgba(0, 0, 0, 0.4)',
         }}>
           <h2 style={{ fontSize: '2.25rem', fontWeight: 800, marginBottom: '1rem', color: '#ffffff' }}>
-            Elevate Your Team's Productivity Today
+            Elevate Your Team&apos;s Productivity Today
           </h2>
-          <p style={{ fontSize: '1.1rem', color: '#B0BEC5', maxWidth: 620, margin: '0 auto 2.25rem auto' }}>
+          <p style={{ fontSize: '1.1rem', color: '#a3acbb', maxWidth: 620, margin: '0 auto 2.25rem auto' }}>
             Log in with any of the 3 pre-seeded demo accounts (Admin, Project Lead, or Team Member) in 1 click.
           </p>
           <div style={{ display: 'flex', justifyContent: 'center', gap: '1rem', flexWrap: 'wrap' }}>
@@ -384,10 +386,10 @@ export default function LandingPage() {
                 borderRadius: '8px',
                 fontSize: '1.05rem',
                 fontWeight: 700,
-                color: '#1A1A2E',
-                backgroundColor: '#26C6DA',
+                color: '#080b12',
+                backgroundColor: '#22d3ee',
                 textDecoration: 'none',
-                boxShadow: '0 4px 16px rgba(38, 198, 218, 0.4)',
+                boxShadow: '0 4px 16px rgba(34, 211, 238, 0.4)',
               }}
             >
               Sign In (3 Logins Ready)
@@ -400,8 +402,8 @@ export default function LandingPage() {
                 fontSize: '1.05rem',
                 fontWeight: 700,
                 color: '#ffffff',
-                border: '1px solid #3d4c60',
-                backgroundColor: '#2E3A4B',
+                border: '1px solid #2a3344',
+                backgroundColor: '#1b2230',
                 textDecoration: 'none',
               }}
             >
@@ -413,15 +415,15 @@ export default function LandingPage() {
 
       {/* ── Footer ────────────────────────────────────────────── */}
       <footer style={{
-        borderTop: '1px solid #2E3A4B',
+        borderTop: '1px solid #1b2230',
         padding: '2.5rem',
         textAlign: 'center',
         fontSize: '0.875rem',
-        color: '#B0BEC5',
-        backgroundColor: '#1A1A2E',
+        color: '#a3acbb',
+        backgroundColor: '#080b12',
       }}>
         <p style={{ margin: 0 }}>
-          © {new Date().getFullYear()} WorkSync • FinTech Midnight Design System • Space Grotesk
+          © {new Date().getFullYear()} WorkSync · Background effect: Aurora by React Bits
         </p>
       </footer>
     </div>
