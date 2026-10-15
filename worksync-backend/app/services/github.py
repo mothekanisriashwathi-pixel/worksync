@@ -83,10 +83,10 @@ async def fetch_github_repo_info(owner: str, repo: str) -> dict:
             status_code=status.HTTP_504_GATEWAY_TIMEOUT,
             detail="GitHub API request timed out.",
         )
-    except httpx.RequestError as exc:
+    except httpx.RequestError:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=f"Failed to connect to GitHub API: {str(exc)}",
+            detail="Failed to connect to GitHub API.",
         )
 
     if resp.status_code == 404:
@@ -137,10 +137,10 @@ async def fetch_github_commits(owner: str, repo: str, per_page: int = 10) -> lis
             status_code=status.HTTP_504_GATEWAY_TIMEOUT,
             detail="GitHub API request timed out.",
         )
-    except httpx.RequestError as exc:
+    except httpx.RequestError:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=f"Failed to connect to GitHub API: {str(exc)}",
+            detail="Failed to connect to GitHub API.",
         )
 
     if resp.status_code == 404:
