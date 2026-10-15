@@ -1,336 +1,234 @@
 import { useState, useRef, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import {
   IconMenu,
   IconSearch,
   IconNotifications,
-  IconProfile,
   IconSettings,
   IconHelp,
   IconLogout,
-  IconClose,
+  IconSun,
+  IconMoon,
 } from './WorkSyncIcons'
 import { useAuth } from '../../context/AuthContext'
+import { useTheme } from '../../context/ThemeContext'
 import { logout } from '../../api/authApi'
+import { getNotifications, markNotificationRead } from '../../api/notificationsApi'
+import { Dialog } from '../ui/Primitives'
+import { initials, ROLE_LABELS, timeAgo } from '../../lib/ui'
 
-const INITIAL_NOTIFICATIONS = [
-  { id: 1, message: 'Alex assigned you a new task: "Update API docs"', time: '2 min ago', unread: true },
-  { id: 2, message: 'Jordan left a comment on "Dashboard redesign"', time: '18 min ago', unread: true },
-  { id: 3, message: 'Sprint 4 project deadline is tomorrow', time: '1 hr ago', unread: true },
-  { id: 4, message: 'Your submission on "Fix login bug" was approved', time: '3 hrs ago', unread: false },
-  { id: 5, message: 'Taylor joined your team', time: 'Yesterday', unread: false },
-]
+const SUBMISSION_TYPES = new Set([
+  'SUBMISSION_RECEIVED', 'RESUBMISSION_RECEIVED', 'SUBMISSION_IN_REVIEW', 'SUBMISSION_APPROVED', 'CHANGES_REQUESTED',
+])
 
-export default function Header({ pageTitle, onMenuClick, textSize, onTextSizeChange }) {
+const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform)
+
+export default function Header({ crumbs, onMenuClick, onOpenPalette }) {
   const { user, clearUser } = useAuth()
+  const { theme, toggleTheme } = useTheme()
   const navigate = useNavigate()
 
-  const [notifications, setNotifications] = useState(INITIAL_NOTIFICATIONS)
-  const [notifOpen, setNotifOpen]         = useState(false)
-  const [profileOpen, setProfileOpen]     = useState(false)
-  const [searchOpen, setSearchOpen]       = useState(false)
-  const [searchValue, setSearchValue]     = useState('')
-  const [helpOpen, setHelpOpen]           = useState(false)
+  const [notifications, setNotifications] = useState([])
+  const [notifOpen, setNotifOpen] = useState(false)
+  const [profileOpen, setProfileOpen] = useState(false)
+  const [helpOpen, setHelpOpen] = useState(false)
 
-  const notifRef   = useRef(null)
+  const notifRef = useRef(null)
   const profileRef = useRef(null)
 
-  const unreadCount = notifications.filter(n => n.unread).length
+  const unreadCount = notifications.filter(n => !n.is_read).length
 
-  // Calculate initials from user name
-  const initials = user?.name
-    ? user.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
-    : 'SA'
-
-  /* Close dropdowns when clicking outside */
+  /* Load real notifications on mount and whenever the panel opens */
   useEffect(() => {
-    function handleClick(e) {
-      if (notifRef.current && !notifRef.current.contains(e.target)) {
-        setNotifOpen(false)
-      }
-      if (profileRef.current && !profileRef.current.contains(e.target)) {
-        setProfileOpen(false)
-      }
-    }
-    document.addEventListener('mousedown', handleClick)
-    return () => document.removeEventListener('mousedown', handleClick)
+    if (!user) return
+    getNotifications()
+      .then(list => setNotifications((list || []).slice(0, 20)))
+      .catch(() => {})
+  }, [user, notifOpen])
+
+  /* The command palette can open the notification panel */
+  useEffect(() => {
+    const open = () => { setNotifOpen(true); setProfileOpen(false) }
+    window.addEventListener('ws:open-notifications', open)
+    return () => window.removeEventListener('ws:open-notifications', open)
   }, [])
 
-  /* Close on Escape */
+  /* Close menus on outside click / Escape */
   useEffect(() => {
-    function handleKey(e) {
-      if (e.key === 'Escape') {
-        setNotifOpen(false)
-        setProfileOpen(false)
-        setSearchOpen(false)
-        setHelpOpen(false)
-      }
+    function onClick(e) {
+      if (notifRef.current && !notifRef.current.contains(e.target)) setNotifOpen(false)
+      if (profileRef.current && !profileRef.current.contains(e.target)) setProfileOpen(false)
     }
-    document.addEventListener('keydown', handleKey)
-    return () => document.removeEventListener('keydown', handleKey)
+    function onKey(e) {
+      if (e.key === 'Escape') { setNotifOpen(false); setProfileOpen(false) }
+    }
+    document.addEventListener('mousedown', onClick)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('mousedown', onClick)
+      document.removeEventListener('keydown', onKey)
+    }
   }, [])
+
+  function markRead(ids) {
+    setNotifications(prev => prev.map(n => (ids.includes(n.id) ? { ...n, is_read: true } : n)))
+    ids.forEach(id => markNotificationRead(id).catch(() => {}))
+  }
 
   async function handleLogout() {
     try {
       await logout()
     } catch {
-      // ignore network errors
+      // network errors still log the user out locally
     } finally {
       clearUser()
       navigate('/login')
     }
   }
 
-  function handleMarkAllRead() {
-    setNotifications(prev => prev.map(n => ({ ...n, unread: false })))
-  }
-
-  function handleSearchSubmit(e) {
-    if (e.key === 'Enter' && searchValue.trim()) {
-      navigate(`/tasks?search=${encodeURIComponent(searchValue.trim())}`)
-      setSearchOpen(false)
-    }
-  }
-
   return (
     <header className="header">
-      {/* Left: hamburger (mobile) + page title */}
-      <div className="header-left">
-        <button
-          className="hamburger-btn"
-          onClick={onMenuClick}
-          aria-label="Open navigation menu"
-        >
-          <IconMenu size={22} />
+      <div className="header-left" style={{ minWidth: 0 }}>
+        <button className="hamburger-btn icon-btn" onClick={onMenuClick} aria-label="Open navigation menu">
+          <IconMenu size={20} />
         </button>
-        <h1 className="header-page-title">{pageTitle}</h1>
+        <nav aria-label="Breadcrumb" className="breadcrumbs">
+          {crumbs.map((c, i) => (
+            <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+              {i > 0 && <span className="crumb-sep" aria-hidden="true">/</span>}
+              {c.to && i < crumbs.length - 1
+                ? <Link to={c.to}>{c.label}</Link>
+                : <span className={i === crumbs.length - 1 ? 'crumb-current' : undefined} aria-current={i === crumbs.length - 1 ? 'page' : undefined}>{c.label}</span>}
+            </span>
+          ))}
+        </nav>
       </div>
 
-      {/* Right: search · notifications · avatar */}
-      <div className="header-right">
+      <div className="header-right" style={{ gap: 6 }}>
+        <button type="button" className="search-trigger" onClick={onOpenPalette} aria-label="Search and run commands" aria-keyshortcuts={isMac ? 'Meta+K' : 'Control+K'}>
+          <IconSearch size={15} />
+          <span className="search-trigger-label">Search or jump to…</span>
+          <kbd aria-hidden="true">{isMac ? '⌘' : 'Ctrl'} K</kbd>
+        </button>
 
-        {/* Search */}
-        <div className="header-search">
-          {searchOpen ? (
-            <div className="input-search-wrapper">
-              <IconSearch size={16} className="search-icon" />
-              <input
-                className="input input-search"
-                placeholder="Search tasks, projects, people… (press Enter)"
-                value={searchValue}
-                onChange={e => setSearchValue(e.target.value)}
-                onKeyDown={handleSearchSubmit}
-                autoFocus
-                aria-label="Search"
-                style={{ width: 260 }}
-              />
-              <button
-                className="btn-icon"
-                style={{ marginLeft: 'var(--space-1)' }}
-                onClick={() => { setSearchOpen(false); setSearchValue('') }}
-                aria-label="Close search"
-              >
-                <IconClose size={16} />
-              </button>
-            </div>
-          ) : (
-            <button
-              className="header-icon-btn"
-              onClick={() => setSearchOpen(true)}
-              aria-label="Open search"
-              title="Search"
-            >
-              <IconSearch size={18} />
-            </button>
-          )}
-        </div>
+        <button
+          type="button"
+          className="icon-btn"
+          onClick={toggleTheme}
+          aria-label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
+          title={theme === 'dark' ? 'Light theme' : 'Dark theme'}
+        >
+          {theme === 'dark' ? <IconSun size={17} /> : <IconMoon size={17} />}
+        </button>
 
         {/* Notifications */}
         <div style={{ position: 'relative' }} ref={notifRef}>
           <button
-            className="header-icon-btn"
+            className="icon-btn"
             onClick={() => { setNotifOpen(v => !v); setProfileOpen(false) }}
-            aria-label={`Notifications${unreadCount ? ` — ${unreadCount} unread` : ''}`}
+            aria-label={`Notifications${unreadCount ? `, ${unreadCount} unread` : ''}`}
             aria-expanded={notifOpen}
+            aria-haspopup="true"
             title="Notifications"
           >
-            <IconNotifications size={18} />
-            {unreadCount > 0 && (
-              <span className="notification-badge" aria-hidden="true" />
-            )}
+            <IconNotifications size={17} />
+            {unreadCount > 0 && <span className="dot" aria-hidden="true" />}
           </button>
 
           {notifOpen && (
-            <div className="notification-panel" role="region" aria-label="Notifications panel">
+            <div className="notification-panel" role="region" aria-label="Notifications">
               <div className="notification-panel-header">
                 <span className="notification-panel-title">Notifications</span>
                 {unreadCount > 0 && (
-                  <button
-                    className="btn btn-tertiary btn-sm"
-                    onClick={handleMarkAllRead}
-                  >
+                  <button className="btn btn-ghost btn-sm" onClick={() => markRead(notifications.filter(n => !n.is_read).map(n => n.id))}>
                     Mark all read
                   </button>
                 )}
               </div>
-
               <ul className="notification-list" role="list">
-                {notifications.map(n => (
-                  <li
-                    key={n.id}
-                    className={`notification-item${n.unread ? ' unread' : ''}`}
-                    role="listitem"
-                    onClick={() => {
-                      setNotifications(prev => prev.map(item => item.id === n.id ? { ...item, unread: false } : item))
-                    }}
-                    style={{ cursor: 'pointer' }}
-                  >
-                    {n.unread && (
-                      <span className="notification-item-dot" aria-hidden="true" />
-                    )}
+                {notifications.length === 0 && (
+                  <li className="notification-item">
                     <div className="notification-item-body">
-                      <p className="notification-item-message">{n.message}</p>
-                      <p className="notification-item-time">{n.time}</p>
+                      <p className="notification-item-message">You&apos;re all caught up.</p>
                     </div>
+                  </li>
+                )}
+                {notifications.map(n => (
+                  <li key={n.id} className={`notification-item${!n.is_read ? ' unread' : ''}`}>
+                    <button
+                      type="button"
+                      style={{ display: 'flex', gap: 10, width: '100%', textAlign: 'left', color: 'inherit' }}
+                      onClick={() => {
+                        if (!n.is_read) markRead([n.id])
+                        if (SUBMISSION_TYPES.has(n.type)) {
+                          setNotifOpen(false)
+                          navigate('/submissions')
+                        }
+                      }}
+                    >
+                      {!n.is_read && <span className="notification-item-dot" aria-label="Unread" />}
+                      <span className="notification-item-body">
+                        <span className="notification-item-message" style={{ display: 'block' }}>{n.message}</span>
+                        <span className="notification-item-time" style={{ display: 'block' }}>{timeAgo(n.created_at)}</span>
+                      </span>
+                    </button>
                   </li>
                 ))}
               </ul>
-
-              <div style={{
-                padding: 'var(--space-3) var(--space-4)',
-                borderTop: '1px solid var(--border-color)',
-                textAlign: 'center',
-              }}>
-                <button
-                  className="btn btn-tertiary btn-sm"
-                  style={{ width: '100%' }}
-                  onClick={() => {
-                    handleMarkAllRead()
-                    setNotifOpen(false)
-                  }}
-                >
-                  Clear all notifications
-                </button>
-              </div>
             </div>
           )}
         </div>
 
-        {/* User avatar + profile menu */}
+        {/* Profile menu */}
         <div style={{ position: 'relative' }} ref={profileRef}>
           <button
             className="avatar avatar-sm"
             onClick={() => { setProfileOpen(v => !v); setNotifOpen(false) }}
             aria-label="Open profile menu"
             aria-expanded={profileOpen}
-            title="My profile"
-            style={{ cursor: 'pointer', border: 'none' }}
+            aria-haspopup="menu"
+            style={{ cursor: 'pointer', width: 30, height: 30, fontSize: 11 }}
           >
-            {initials}
+            {initials(user?.name)}
           </button>
 
           {profileOpen && (
             <div className="profile-menu" role="menu" aria-label="Profile menu">
-              {/* User info */}
               <div className="profile-menu-header">
-                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
-                  <div className="avatar avatar-md" aria-hidden="true">{initials}</div>
-                  <div>
-                    <p className="profile-menu-name">{user?.name || 'Sri Ashwathi'}</p>
-                    <p className="profile-menu-role">{user?.role ? `${user.role.charAt(0) + user.role.slice(1).toLowerCase()} Account` : 'Team Manager'}</p>
-                  </div>
-                </div>
+                <p className="profile-menu-name">{user?.name}</p>
+                <p className="profile-menu-role">{user?.email}</p>
+                <span className="badge badge-info" style={{ marginTop: 6 }}>{ROLE_LABELS[user?.role] ?? user?.role}</span>
               </div>
-
-              {/* Menu items */}
-              <div role="none">
-                <button
-                  className="profile-menu-item"
-                  role="menuitem"
-                  onClick={() => {
-                    setProfileOpen(false)
-                    navigate('/settings')
-                  }}
-                >
-                  <IconProfile size={16} />
-                  My Profile
-                </button>
-                <button
-                  className="profile-menu-item"
-                  role="menuitem"
-                  onClick={() => {
-                    setProfileOpen(false)
-                    navigate('/settings')
-                  }}
-                >
-                  <IconSettings size={16} />
-                  Account Settings
-                </button>
-                <button
-                  className="profile-menu-item"
-                  role="menuitem"
-                  onClick={() => {
-                    setProfileOpen(false)
-                    setHelpOpen(true)
-                  }}
-                >
-                  <IconHelp size={16} />
-                  Help &amp; Support
-                </button>
-              </div>
-
+              <button className="profile-menu-item" role="menuitem" onClick={() => { setProfileOpen(false); navigate('/settings') }}>
+                <IconSettings size={16} /> Settings
+              </button>
+              <button className="profile-menu-item" role="menuitem" onClick={() => { setProfileOpen(false); setHelpOpen(true) }}>
+                <IconHelp size={16} /> Help &amp; shortcuts
+              </button>
               <div className="profile-menu-divider" role="separator" />
-
-              <div role="none">
-                <button
-                  className="profile-menu-item danger"
-                  role="menuitem"
-                  onClick={handleLogout}
-                >
-                  <IconLogout size={16} />
-                  Log Out
-                </button>
-              </div>
+              <button className="profile-menu-item danger" role="menuitem" onClick={handleLogout}>
+                <IconLogout size={16} /> Log out
+              </button>
             </div>
           )}
         </div>
       </div>
 
-      {/* Help Modal */}
       {helpOpen && (
-        <div style={{
-          position: 'fixed',
-          inset: 0,
-          backgroundColor: 'rgba(0, 0, 0, 0.45)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1000,
-        }}>
-          <div style={{
-            backgroundColor: '#ffffff',
-            borderRadius: 12,
-            padding: '2rem',
-            maxWidth: 460,
-            width: '90%',
-            boxShadow: '0 20px 40px rgba(0,0,0,0.2)',
-          }}>
-            <h3 style={{ marginTop: 0, marginBottom: '0.75rem', fontSize: '1.25rem', fontWeight: 700 }}>
-              WorkSync Help & Support
-            </h3>
-            <p style={{ color: '#4e4059', fontSize: '0.925rem', lineHeight: 1.5, marginBottom: '1.5rem' }}>
-              Welcome to WorkSync! Use the sidebar navigation on the left to manage Projects, track Tasks, and view Team activity.
-              For API endpoints, check out the FastAPI docs at <a href="http://127.0.0.1:8000/docs" target="_blank" rel="noreferrer" style={{ color: '#00acc1', fontWeight: 700 }}>/docs</a>.
-            </p>
-            <button
-              className="btn btn-primary"
-              style={{ width: '100%', padding: '0.75rem', borderRadius: 8, backgroundColor: '#26C6DA', color: '#1A1A2E', fontWeight: 700 }}
-              onClick={() => setHelpOpen(false)}
-            >
-              Got it, close
-            </button>
-          </div>
-        </div>
+        <Dialog
+          title="Help & keyboard shortcuts"
+          onClose={() => setHelpOpen(false)}
+          footer={<button className="btn btn-primary" onClick={() => setHelpOpen(false)} data-autofocus>Got it</button>}
+        >
+          <dl className="meta-grid" style={{ gridTemplateColumns: '140px 1fr' }}>
+            <dt><kbd>{isMac ? '⌘' : 'Ctrl'} K</kbd></dt><dd>Search projects and tasks, run commands</dd>
+            <dt><kbd>G</kbd> then <kbd>D</kbd>/<kbd>P</kbd>/<kbd>T</kbd>/<kbd>S</kbd>/<kbd>M</kbd></dt><dd>Go to Dashboard, Projects, Tasks, Submissions, Team</dd>
+            <dt><kbd>Esc</kbd></dt><dd>Close dialogs, drawers and menus</dd>
+          </dl>
+          <p className="muted" style={{ fontSize: 13, marginTop: 14 }}>
+            API reference: <a href="http://127.0.0.1:8000/docs" target="_blank" rel="noreferrer">FastAPI /docs</a>
+          </p>
+        </Dialog>
       )}
     </header>
   )

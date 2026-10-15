@@ -4,138 +4,104 @@ import {
   IconTasks,
   IconTeam,
   IconSettings,
+  IconInbox,
   IconChevronLeft,
   IconChevronRight,
 } from './WorkSyncIcons'
+import { useAuth } from '../../context/AuthContext'
+import { initials, ROLE_LABELS } from '../../lib/ui'
 
-/**
- * Sidebar — desktop fixed/collapsible navigation.
- * No user profile here — that lives in the Header.
- *
- * Props:
- *   collapsed   {boolean}  — controlled collapse state
- *   onToggle    {function} — called when toggle button is clicked
- *   activePage  {string}   — current active nav item key
- *   onNavigate  {function} — called with nav item key on click
- */
-
-const NAV_ITEMS = [
-  { key: 'dashboard', label: 'Dashboard', Icon: IconDashboard },
-  { key: 'projects', label: 'Projects', Icon: IconProjects },
-  { key: 'tasks', label: 'Tasks', Icon: IconTasks },
-  { key: 'team', label: 'Team', Icon: IconTeam },
-  { key: 'settings', label: 'Settings', Icon: IconSettings },
+/** Single source of navigation for the sidebar, mobile drawer, shortcuts and command palette. */
+// eslint-disable-next-line react-refresh/only-export-components
+export const NAV_GROUPS = [
+  {
+    label: 'Workspace',
+    items: [
+      { key: 'dashboard', label: 'Dashboard', Icon: IconDashboard, shortcut: 'd' },
+      { key: 'projects', label: 'Projects', Icon: IconProjects, shortcut: 'p' },
+      { key: 'tasks', label: 'Tasks', Icon: IconTasks, shortcut: 't' },
+      { key: 'submissions', label: 'Submissions', Icon: IconInbox, shortcut: 's' },
+    ],
+  },
+  {
+    label: 'Organization',
+    items: [
+      { key: 'team', label: 'Team', Icon: IconTeam, shortcut: 'm' },
+      { key: 'settings', label: 'Settings', Icon: IconSettings, shortcut: ',' },
+    ],
+  },
 ]
 
-export default function Sidebar({
-  collapsed,
-  onToggle,
-  activePage,
-  onNavigate,
-}) {
+export function NavList({ activePage, onNavigate, collapsed = false }) {
   return (
-    <aside
-      className={`sidebar${collapsed ? ' collapsed' : ''}`}
-      aria-label="Main navigation"
-    >
-      {/* Logo */}
-      <div className="sidebar-logo">
-        <div className="sidebar-logo-mark" aria-hidden="true">
-          W
-        </div>
-
-        <span className="sidebar-logo-text">
-          WorkSync
-        </span>
-      </div>
-
-      {/* Primary navigation */}
-      <nav className="sidebar-nav" aria-label="Primary navigation">
-        <div className="sidebar-nav-group">
-          {!collapsed && (
-            <span className="sidebar-nav-group-label">
-              Menu
-            </span>
-          )}
-
-          {NAV_ITEMS.map(({ key, label, Icon }) => (
-            <NavItem
+    <nav className="sidebar-nav" aria-label="Primary navigation">
+      {NAV_GROUPS.map(group => (
+        <div className="sidebar-nav-group" key={group.label} role="group" aria-label={group.label}>
+          {!collapsed && <span className="sidebar-nav-group-label">{group.label}</span>}
+          {group.items.map(({ key, label, Icon, shortcut }) => (
+            <button
               key={key}
-              navKey={key}
-              label={label}
-              Icon={Icon}
-              collapsed={collapsed}
-              active={activePage === key}
-              onNavigate={onNavigate}
-            />
+              type="button"
+              className={`sidebar-nav-item${activePage === key ? ' active' : ''}`}
+              onClick={() => onNavigate(key)}
+              aria-current={activePage === key ? 'page' : undefined}
+              aria-label={collapsed ? label : undefined}
+              data-tooltip={label}
+              aria-keyshortcuts={`G ${shortcut.toUpperCase()}`}
+            >
+              <Icon size={18} className="sidebar-nav-icon" />
+              {!collapsed && <span className="sidebar-nav-label">{label}</span>}
+              {!collapsed && <kbd aria-hidden="true">G {shortcut.toUpperCase()}</kbd>}
+            </button>
           ))}
         </div>
-      </nav>
-
-      {/* Flex spacer — keeps collapse toggle at the bottom */}
-      <div style={{ flex: 1 }} />
-
-      {/* Collapse / expand toggle */}
-      <div className="sidebar-toggle">
-        <button
-          className="btn-icon"
-          onClick={onToggle}
-          aria-label={
-            collapsed
-              ? 'Expand sidebar'
-              : 'Collapse sidebar'
-          }
-          title={
-            collapsed
-              ? 'Expand sidebar'
-              : 'Collapse sidebar'
-          }
-          style={{
-            color: 'var(--sidebar-text)',
-          }}
-        >
-          {collapsed ? (
-            <IconChevronRight size={18} />
-          ) : (
-            <IconChevronLeft size={18} />
-          )}
-        </button>
-      </div>
-    </aside>
+      ))}
+    </nav>
   )
 }
 
-/* ------------------------------------------------------------------ */
-/* NavItem                                                            */
-/* ------------------------------------------------------------------ */
-
-function NavItem({
-  navKey,
-  label,
-  Icon,
-  collapsed,
-  active,
-  onNavigate,
-}) {
+export function SidebarUser({ collapsed }) {
+  const { user } = useAuth()
+  if (!user) return null
   return (
-    <button
-      className={`sidebar-nav-item${active ? ' active' : ''}`}
-      onClick={() => onNavigate(navKey)}
-      aria-current={active ? 'page' : undefined}
-      title={collapsed ? label : undefined}
-      style={{
-        width: '100%',
-        textAlign: 'left',
-      }}
-    >
-      <Icon
-        size={20}
-        className="sidebar-nav-icon"
-      />
+    <div className="sidebar-user" title={collapsed ? `${user.name} · ${ROLE_LABELS[user.role] ?? user.role}` : undefined}>
+      <span className="avatar avatar-sm" aria-hidden="true" style={{ width: 30, height: 30, fontSize: 11 }}>{initials(user.name)}</span>
+      {!collapsed && (
+        <span className="sidebar-user-meta">
+          <span className="sidebar-user-name" style={{ display: 'block' }}>{user.name}</span>
+          <span className="sidebar-user-role">{ROLE_LABELS[user.role] ?? user.role}</span>
+        </span>
+      )}
+    </div>
+  )
+}
 
-      <span className="sidebar-nav-label">
-        {label}
-      </span>
-    </button>
+export default function Sidebar({ collapsed, onToggle, activePage, onNavigate }) {
+  return (
+    <aside className={`sidebar${collapsed ? ' collapsed' : ''}`} aria-label="Sidebar">
+      <div className="sidebar-logo">
+        <div className="sidebar-logo-mark" aria-hidden="true">W</div>
+        {!collapsed && <span className="sidebar-logo-text">WorkSync</span>}
+      </div>
+
+      <NavList activePage={activePage} onNavigate={onNavigate} collapsed={collapsed} />
+
+      <div style={{ flex: 1 }} />
+
+      <div className="sidebar-footer">
+        <SidebarUser collapsed={collapsed} />
+        <button
+          type="button"
+          className="sidebar-nav-item"
+          onClick={onToggle}
+          aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          aria-expanded={!collapsed}
+          data-tooltip={collapsed ? 'Expand sidebar' : undefined}
+        >
+          {collapsed ? <IconChevronRight size={18} className="sidebar-nav-icon" /> : <IconChevronLeft size={18} className="sidebar-nav-icon" />}
+          {!collapsed && <span className="sidebar-nav-label">Collapse</span>}
+        </button>
+      </div>
+    </aside>
   )
 }
