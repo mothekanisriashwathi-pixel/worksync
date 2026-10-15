@@ -1,13 +1,13 @@
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.dependencies import require_roles
 from app.models.project import Project
-from app.models.task import Task
-from app.models.team import TeamMember
+from app.models.task import Task, TaskStatus
+from app.models.team import Team, TeamMember
 from app.models.user import User, UserRole
 from app.schemas.task import TaskCreate, TaskResponse, TaskUpdate
 from app.services.notification import create_notification
@@ -44,7 +44,8 @@ def get_tasks(
         stmt = (
             select(Task)
             .join(Project, Task.project_id == Project.id)
-            .where(Project.manager_id == current_user.id)
+            .join(Team, Team.id == Project.team_id)
+            .where(or_(Project.manager_id == current_user.id, Team.manager_id == current_user.id))
         )
         if project_id is not None:
             stmt = stmt.where(Task.project_id == project_id)
@@ -215,6 +216,13 @@ def update_task(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Members can only update task status and description",
             )
+
+        # Review and completion are driven by submissions, not by moving the card.
+        if update_data.get("status") in (TaskStatus.IN_REVIEW, TaskStatus.COMPLETED):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Submit your work for review instead; tasks complete when a reviewer approves them",
+            )
     else:
         update_data = task_data.model_dump(exclude_unset=True)
 
@@ -311,7 +319,7 @@ def get_task(
         )
 
     if current_user.role == UserRole.MANAGER:
-        if project.manager_id != current_user.id:
+        if project.manager_id != current_user.id and project.team.manager_id != current_user.id:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="You do not have access to this task",
