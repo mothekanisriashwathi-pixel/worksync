@@ -1,12 +1,8 @@
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, Field
 
 from app.models.submission import SubmissionStatus
-
-
-class SubmissionCreate(BaseModel):
-    comment: str | None = Field(None, max_length=2000)
 
 
 class SubmissionReview(BaseModel):
@@ -15,15 +11,21 @@ class SubmissionReview(BaseModel):
 
 
 class SubmissionResponse(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
     id: int
     task_id: int
+    task_title: str
+    project_id: int
+    project_name: str
     submitted_by: int
-    file_path: str
+    submitter_name: str
+    version: int
     comment: str | None
+    github_url: str | None
+    has_file: bool
+    original_filename: str | None
     status: SubmissionStatus
     review_comment: str | None
     reviewed_by: int | None
+    reviewer_name: str | None
     submitted_at: datetime
     reviewed_at: datetime | None
