@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -82,12 +82,16 @@ def get_projects(
             .order_by(Project.id)
         ).all()
 
-    # Manager can see projects they manage
+    # Manager can see projects they manage or that belong to teams they lead
     if current_user.role == UserRole.MANAGER:
         return db.scalars(
             select(Project)
+            .join(Team, Team.id == Project.team_id)
             .where(
-                Project.manager_id == current_user.id
+                or_(
+                    Project.manager_id == current_user.id,
+                    Team.manager_id == current_user.id,
+                )
             )
             .order_by(Project.id)
         ).all()
