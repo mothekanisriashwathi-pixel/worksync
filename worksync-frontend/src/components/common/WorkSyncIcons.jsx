@@ -412,3 +412,73 @@ export function IconExternalLink({ size = 20, className, ...rest }) {
     </svg>
   )
 }
+
+/* ── Workspace additions (same 24px / 2px-stroke style) ── */
+
+export function IconSun({ size = 20, className, ...rest }) {
+  return (
+    <svg {...iconProps(size, className, rest)}>
+      <circle cx="12" cy="12" r="4" />
+      <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" />
+    </svg>
+  )
+}
+
+export function IconMoon({ size = 20, className, ...rest }) {
+  return (
+    <svg {...iconProps(size, className, rest)}>
+      <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9z" />
+    </svg>
+  )
+}
+
+export function IconList({ size = 20, className, ...rest }) {
+  return (
+    <svg {...iconProps(size, className, rest)}>
+      <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" />
+    </svg>
+  )
+}
+
+export function IconColumns({ size = 20, className, ...rest }) {
+  return (
+    <svg {...iconProps(size, className, rest)}>
+      <rect x="3" y="3" width="18" height="18" rx="2" />
+      <path d="M9 3v18M15 3v18" />
+    </svg>
+  )
+}
+
+export function IconChevronUp({ size = 20, className, ...rest }) {
+  return (
+    <svg {...iconProps(size, className, rest)}>
+      <path d="m18 15-6-6-6 6" />
+    </svg>
+  )
+}
+
+export function IconArrowUpDown({ size = 20, className, ...rest }) {
+  return (
+    <svg {...iconProps(size, className, rest)}>
+      <path d="m21 16-4 4-4-4M17 20V4M3 8l4-4 4 4M7 4v16" />
+    </svg>
+  )
+}
+
+export function IconClock({ size = 20, className, ...rest }) {
+  return (
+    <svg {...iconProps(size, className, rest)}>
+      <circle cx="12" cy="12" r="10" />
+      <path d="M12 6v6l4 2" />
+    </svg>
+  )
+}
+
+export function IconCornerDownLeft({ size = 20, className, ...rest }) {
+  return (
+    <svg {...iconProps(size, className, rest)}>
+      <path d="M9 10 4 15l5 5" />
+      <path d="M20 4v7a4 4 0 0 1-4 4H4" />
+    </svg>
+  )
+}
