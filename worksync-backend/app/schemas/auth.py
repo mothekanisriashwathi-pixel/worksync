@@ -33,6 +33,8 @@ class RegisterRequest(BaseModel):
         v = v.strip()
         if not v:
             raise ValueError("Name must not be empty.")
+        if len(v) > 100:
+            raise ValueError("Name must be at most 100 characters.")
         return v
 
     @field_validator("password")
@@ -40,6 +42,8 @@ class RegisterRequest(BaseModel):
     def password_min_length(cls, v: str) -> str:
         if len(v) < 8:
             raise ValueError("Password must be at least 8 characters.")
+        if len(v.encode()) > 72:
+            raise ValueError("Password must be at most 72 bytes.")
         return v
 
 
