@@ -1,20 +1,23 @@
 from datetime import datetime
 from enum import Enum
 
-from sqlalchemy import DateTime, Enum as SQLEnum, ForeignKey, Integer, String, Text
+from sqlalchemy import DateTime, Enum as SQLEnum, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
 
 
 class SubmissionStatus(str, Enum):
-    PENDING = "PENDING"
+    PENDING = "PENDING"  # "Submitted", awaiting a reviewer
+    IN_REVIEW = "IN_REVIEW"
     APPROVED = "APPROVED"
     CHANGES_REQUESTED = "CHANGES_REQUESTED"
 
 
 class Submission(Base):
     __tablename__ = "submissions"
+    # Each resubmission is a new row; the pair keeps revision numbers unique per task.
+    __table_args__ = (UniqueConstraint("task_id", "version", name="uq_submissions_task_version"),)
 
     id: Mapped[int] = mapped_column(
         Integer,
@@ -32,9 +35,26 @@ class Submission(Base):
         nullable=False,
     )
 
-    file_path: Mapped[str] = mapped_column(
-        String(500),
+    version: Mapped[int] = mapped_column(
+        Integer,
         nullable=False,
+        default=1,
+    )
+
+    # Stored (generated) file name inside the upload dir; never sent to clients.
+    file_path: Mapped[str | None] = mapped_column(
+        String(500),
+        nullable=True,
+    )
+
+    original_filename: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True,
+    )
+
+    github_url: Mapped[str | None] = mapped_column(
+        String(500),
+        nullable=True,
     )
 
     comment: Mapped[str | None] = mapped_column(
