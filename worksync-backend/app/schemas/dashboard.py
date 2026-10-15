@@ -56,7 +56,8 @@ class PendingReviewItem(BaseModel):
     project_name: str | None = None
     submitted_by_id: int
     submitter_name: str
-    file_path: str
+    status: str
+    version: int
     comment: str | None = None
     submitted_at: str
 
