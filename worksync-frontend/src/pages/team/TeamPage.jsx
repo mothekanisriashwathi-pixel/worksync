@@ -3,6 +3,8 @@ import { getTeams, getTeamMembers, addTeamMember, removeTeamMember, createTeam }
 import { getUsers } from '../../api/usersApi'
 import { useAuth } from '../../context/AuthContext'
 import { IconAdd, IconClose, IconTeam } from '../../components/common/WorkSyncIcons'
+import { Dialog } from '../../components/ui/Primitives'
+import { errorText } from '../../lib/ui'
 
 export default function TeamPage() {
   const { user } = useAuth()
@@ -21,6 +23,7 @@ export default function TeamPage() {
   const [newTeamDesc, setNewTeamDesc] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [modalError, setModalError] = useState('')
+  const [removing, setRemoving] = useState(null) // member pending removal confirmation
 
   useEffect(() => {
     loadTeams()
@@ -84,14 +87,16 @@ export default function TeamPage() {
   }
 
   async function handleRemoveMember(userId) {
-    if (!window.confirm('Are you sure you want to remove this user from the team?')) return
+    setSubmitting(true)
     try {
       await removeTeamMember(activeTeamId, userId)
       setMembers(prev => prev.filter(m => m.user_id !== userId))
+      setPageError('')
     } catch (err) {
-      console.error('Failed to remove member:', err)
-      const detail = err?.response?.data?.detail
-      alert(typeof detail === 'string' ? detail : 'Failed to remove member.')
+      setPageError(errorText(err, 'Failed to remove member.'))
+    } finally {
+      setSubmitting(false)
+      setRemoving(null)
     }
   }
 
@@ -125,14 +130,14 @@ export default function TeamPage() {
   const availableUsers = allUsers.filter(u => !existingMemberIds.has(u.id))
 
   return (
-    <div style={{ maxWidth: 1200, margin: '0 auto', paddingBottom: '3rem' }}>
+    <div style={{ maxWidth: 'none', paddingBottom: '2rem' }}>
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '2rem', flexWrap: 'wrap', gap: '1rem' }}>
         <div>
-          <h1 style={{ fontSize: '2rem', fontWeight: 800, color: '#1A1A2E', margin: '0 0 0.35rem 0' }}>
+          <h1 className="page-title">
             Team Management
           </h1>
-          <p style={{ margin: 0, color: '#777184', fontSize: '0.95rem' }}>
+          <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.95rem' }}>
             Collaborators, roles, and workspace access management
           </p>
         </div>
@@ -150,10 +155,10 @@ export default function TeamPage() {
                 gap: '0.5rem',
                 padding: '0.75rem 1.25rem',
                 borderRadius: 8,
-                backgroundColor: '#f1f5f9',
-                color: '#1A1A2E',
+                backgroundColor: 'var(--surface-subtle)',
+                color: 'var(--text-primary)',
                 fontWeight: 600,
-                border: '1px solid #d0c6d8',
+                border: '1px solid var(--border-color)',
                 cursor: 'pointer',
               }}
             >
@@ -178,8 +183,8 @@ export default function TeamPage() {
               gap: '0.5rem',
               padding: '0.75rem 1.4rem',
               borderRadius: 8,
-              backgroundColor: !activeTeamId ? '#d0c6d8' : '#26C6DA',
-              color: '#1A1A2E',
+              backgroundColor: !activeTeamId ? 'var(--surface-hover)' : 'var(--accent)',
+              color: 'var(--text-primary)',
               fontWeight: 700,
               border: 'none',
               cursor: !activeTeamId ? 'not-allowed' : 'pointer',
@@ -193,14 +198,14 @@ export default function TeamPage() {
       </div>
 
       {pageError && (
-        <div style={{ padding: '0.75rem 1rem', marginBottom: '1.5rem', backgroundColor: '#fee2e2', color: '#b91c1c', borderRadius: 8, fontSize: '0.9rem' }}>
+        <div style={{ padding: '0.75rem 1rem', marginBottom: '1.5rem', backgroundColor: 'var(--danger-soft)', color: 'var(--danger-text)', borderRadius: 8, fontSize: '0.9rem' }}>
           {pageError}
         </div>
       )}
 
       {/* Team Tabs if multiple teams exist */}
       {teams.length > 1 && (
-        <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem', flexWrap: 'wrap', borderBottom: '1px solid #ede8f5', paddingBottom: '0.5rem' }}>
+        <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem', flexWrap: 'wrap', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem' }}>
           {teams.map(t => (
             <button
               key={t.id}
@@ -212,8 +217,8 @@ export default function TeamPage() {
                 fontWeight: 600,
                 border: 'none',
                 cursor: 'pointer',
-                backgroundColor: activeTeamId === t.id ? '#26C6DA' : '#f1f5f9',
-                color: activeTeamId === t.id ? '#1A1A2E' : '#475569',
+                backgroundColor: activeTeamId === t.id ? 'var(--accent)' : 'var(--surface-subtle)',
+                color: activeTeamId === t.id ? 'var(--text-primary)' : 'var(--text-secondary)',
               }}
             >
               {t.name}
@@ -223,11 +228,11 @@ export default function TeamPage() {
       )}
 
       {activeTeam && (
-        <div style={{ marginBottom: '1.5rem', padding: '1rem 1.25rem', backgroundColor: '#fff', borderRadius: 10, border: '1px solid #E9E3EE' }}>
-          <h2 style={{ fontSize: '1.15rem', fontWeight: 700, margin: '0 0 0.25rem 0', color: '#1A1A2E' }}>
+        <div style={{ marginBottom: '1.5rem', padding: '1rem 1.25rem', backgroundColor: 'var(--surface-card)', borderRadius: 10, border: '1px solid var(--border-color)' }}>
+          <h2 style={{ fontSize: '1.15rem', fontWeight: 700, margin: '0 0 0.25rem 0', color: 'var(--text-primary)' }}>
             {activeTeam.name}
           </h2>
-          <p style={{ margin: 0, fontSize: '0.85rem', color: '#777184' }}>
+          <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
             {activeTeam.description || 'Active workspace team.'}
           </p>
         </div>
@@ -235,31 +240,31 @@ export default function TeamPage() {
 
       {/* Team Cards Grid */}
       {loading ? (
-        <div style={{ textAlign: 'center', padding: '3rem', color: '#777184' }}>
+        <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-secondary)' }}>
           <span className="spinner spinner-lg" style={{ display: 'inline-block', marginBottom: '1rem' }} />
           <div>Loading team members...</div>
         </div>
       ) : teams.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '3rem', backgroundColor: '#fff', borderRadius: 12, border: '1px solid #E9E3EE' }}>
-          <IconTeam size={48} style={{ color: '#9E8FAA', marginBottom: '1rem' }} />
-          <h3 style={{ margin: '0 0 0.5rem 0', color: '#1A1A2E' }}>No Teams Configured</h3>
-          <p style={{ color: '#777184', margin: '0 0 1.25rem 0' }}>
+        <div style={{ textAlign: 'center', padding: '3rem', backgroundColor: 'var(--surface-card)', borderRadius: 12, border: '1px solid var(--border-color)' }}>
+          <IconTeam size={48} style={{ color: 'var(--text-tertiary)', marginBottom: '1rem' }} />
+          <h3 style={{ margin: '0 0 0.5rem 0', color: 'var(--text-primary)' }}>No Teams Configured</h3>
+          <p style={{ color: 'var(--text-secondary)', margin: '0 0 1.25rem 0' }}>
             Create a team to start collaborating and assigning tasks.
           </p>
           {(user?.role === 'ADMIN' || user?.role === 'MANAGER') && (
             <button
               onClick={() => setTeamModalOpen(true)}
-              style={{ padding: '0.6rem 1.25rem', borderRadius: 8, backgroundColor: '#26C6DA', color: '#1A1A2E', fontWeight: 700, border: 'none', cursor: 'pointer' }}
+              style={{ padding: '0.6rem 1.25rem', borderRadius: 8, backgroundColor: 'var(--accent)', color: 'var(--on-accent)', fontWeight: 700, border: 'none', cursor: 'pointer' }}
             >
               Create Team
             </button>
           )}
         </div>
       ) : members.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '3rem', backgroundColor: '#fff', borderRadius: 12, border: '1px solid #E9E3EE' }}>
-          <IconTeam size={48} style={{ color: '#9E8FAA', marginBottom: '1rem' }} />
-          <h3 style={{ margin: '0 0 0.5rem 0', color: '#1A1A2E' }}>No Members in this Team</h3>
-          <p style={{ color: '#777184', margin: '0 0 1.25rem 0' }}>
+        <div style={{ textAlign: 'center', padding: '3rem', backgroundColor: 'var(--surface-card)', borderRadius: 12, border: '1px solid var(--border-color)' }}>
+          <IconTeam size={48} style={{ color: 'var(--text-tertiary)', marginBottom: '1rem' }} />
+          <h3 style={{ margin: '0 0 0.5rem 0', color: 'var(--text-primary)' }}>No Members in this Team</h3>
+          <p style={{ color: 'var(--text-secondary)', margin: '0 0 1.25rem 0' }}>
             Add members from your workspace so they can receive tasks.
           </p>
           <button
@@ -270,13 +275,13 @@ export default function TeamPage() {
               }
               setMemberModalOpen(true)
             }}
-            style={{ padding: '0.6rem 1.25rem', borderRadius: 8, backgroundColor: '#26C6DA', color: '#1A1A2E', fontWeight: 700, border: 'none', cursor: 'pointer' }}
+            style={{ padding: '0.6rem 1.25rem', borderRadius: 8, backgroundColor: 'var(--accent)', color: 'var(--on-accent)', fontWeight: 700, border: 'none', cursor: 'pointer' }}
           >
             Add First Member
           </button>
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.25rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(280px, 100%), 1fr))', gap: '1.25rem' }}>
           {members.map(member => {
             const memberName = member.user?.name || `User #${member.user_id}`
             const memberEmail = member.user?.email || '—'
@@ -286,9 +291,9 @@ export default function TeamPage() {
               <div
                 key={member.user_id}
                 style={{
-                  backgroundColor: '#ffffff',
+                  backgroundColor: 'var(--surface-card)',
                   borderRadius: 12,
-                  border: '1px solid #E9E3EE',
+                  border: '1px solid var(--border-color)',
                   padding: '1.5rem',
                   boxShadow: '0 2px 8px rgba(0,0,0,0.02)',
                   display: 'flex',
@@ -302,8 +307,8 @@ export default function TeamPage() {
                       width: 48,
                       height: 48,
                       borderRadius: '50%',
-                      backgroundColor: 'rgba(38, 198, 218, 0.15)',
-                      color: '#26C6DA',
+                      backgroundColor: 'var(--accent-soft)',
+                      color: 'var(--accent-text)',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
@@ -317,30 +322,30 @@ export default function TeamPage() {
                       borderRadius: 4,
                       fontSize: '0.75rem',
                       fontWeight: 700,
-                      backgroundColor: memberRole === 'ADMIN' ? '#fee2e2' : memberRole === 'MANAGER' ? 'rgba(38, 198, 218, 0.15)' : '#f0fdf4',
-                      color: memberRole === 'ADMIN' ? '#b91c1c' : memberRole === 'MANAGER' ? '#0097a7' : '#15803d',
+                      backgroundColor: memberRole === 'ADMIN' ? 'var(--danger-soft)' : memberRole === 'MANAGER' ? 'var(--accent-soft)' : 'var(--success-soft)',
+                      color: memberRole === 'ADMIN' ? 'var(--danger-text)' : memberRole === 'MANAGER' ? 'var(--accent-text)' : 'var(--success-text)',
                     }}>
                       {memberRole}
                     </span>
                   </div>
 
-                  <h3 style={{ margin: '0 0 0.25rem 0', fontSize: '1.1rem', fontWeight: 700, color: '#1A1A2E' }}>
+                  <h3 style={{ margin: '0 0 0.25rem 0', fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)' }}>
                     {memberName}
                   </h3>
-                  <p style={{ margin: '0 0 1rem 0', fontSize: '0.85rem', color: '#777184' }}>
+                  <p style={{ margin: '0 0 1rem 0', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
                     {memberEmail}
                   </p>
                 </div>
 
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #f5f0f0', paddingTop: '0.75rem' }}>
-                  <span style={{ fontSize: '0.75rem', color: '#22c55e', fontWeight: 600 }}>● Active</span>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--border-color)', paddingTop: '0.75rem' }}>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--success-text)', fontWeight: 600 }}>● Active</span>
                   {(user?.role === 'ADMIN' || user?.role === 'MANAGER') && (
                     <button
-                      onClick={() => handleRemoveMember(member.user_id)}
+                      onClick={() => setRemoving(member)}
                       style={{
                         background: 'none',
                         border: 'none',
-                        color: '#9E8FAA',
+                        color: 'var(--text-tertiary)',
                         fontSize: '0.75rem',
                         cursor: 'pointer',
                       }}
@@ -367,16 +372,16 @@ export default function TeamPage() {
           zIndex: 999,
           padding: '1rem',
         }}>
-          <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: '2rem', maxWidth: 440, width: '100%' }}>
+          <div style={{ backgroundColor: 'var(--surface-card)', borderRadius: 16, padding: '2rem', maxWidth: 440, width: '100%' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
               <h3 style={{ margin: 0, fontSize: '1.3rem', fontWeight: 700 }}>Add Member to Team</h3>
-              <button onClick={() => setMemberModalOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#777184' }}>
+              <button onClick={() => setMemberModalOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)' }}>
                 <IconClose size={20} />
               </button>
             </div>
 
             {modalError && (
-              <div style={{ padding: '0.65rem 0.85rem', marginBottom: '1rem', backgroundColor: '#fee2e2', color: '#b91c1c', borderRadius: 8, fontSize: '0.85rem' }}>
+              <div style={{ padding: '0.65rem 0.85rem', marginBottom: '1rem', backgroundColor: 'var(--danger-soft)', color: 'var(--danger-text)', borderRadius: 8, fontSize: '0.85rem' }}>
                 {modalError}
               </div>
             )}
@@ -385,7 +390,7 @@ export default function TeamPage() {
               <div>
                 <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.3rem' }}>Select User</label>
                 {availableUsers.length === 0 ? (
-                  <div style={{ fontSize: '0.85rem', color: '#b91c1c', padding: '0.5rem', backgroundColor: '#fef2f2', borderRadius: 6 }}>
+                  <div style={{ fontSize: '0.85rem', color: 'var(--danger-text)', padding: '0.5rem', backgroundColor: 'var(--danger-soft)', borderRadius: 6 }}>
                     No other users available to add. All active accounts are already in this team.
                   </div>
                 ) : (
@@ -393,7 +398,7 @@ export default function TeamPage() {
                     value={selectedUserId}
                     onChange={e => setSelectedUserId(e.target.value)}
                     required
-                    style={{ width: '100%', padding: '0.65rem', borderRadius: 8, border: '1px solid #d0c6d8', backgroundColor: '#fff' }}
+                    style={{ width: '100%', padding: '0.65rem', borderRadius: 8, border: '1px solid var(--border-color)', backgroundColor: 'var(--surface-card)' }}
                   >
                     {availableUsers.map(u => (
                       <option key={u.id} value={u.id}>
@@ -408,7 +413,7 @@ export default function TeamPage() {
                 <button
                   type="button"
                   onClick={() => setMemberModalOpen(false)}
-                  style={{ padding: '0.65rem 1.25rem', borderRadius: 8, border: '1px solid #d0c6d8', background: '#fff', cursor: 'pointer' }}
+                  style={{ padding: '0.65rem 1.25rem', borderRadius: 8, border: '1px solid var(--border-color)', background: 'var(--surface-card)', cursor: 'pointer' }}
                 >
                   Cancel
                 </button>
@@ -419,8 +424,8 @@ export default function TeamPage() {
                     padding: '0.65rem 1.4rem',
                     borderRadius: 8,
                     border: 'none',
-                    background: availableUsers.length === 0 ? '#d0c6d8' : '#26C6DA',
-                    color: '#1A1A2E',
+                    background: availableUsers.length === 0 ? 'var(--surface-hover)' : 'var(--accent)',
+                    color: 'var(--text-primary)',
                     cursor: availableUsers.length === 0 ? 'not-allowed' : 'pointer',
                     fontWeight: 700,
                   }}
@@ -445,16 +450,16 @@ export default function TeamPage() {
           zIndex: 999,
           padding: '1rem',
         }}>
-          <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: '2rem', maxWidth: 440, width: '100%' }}>
+          <div style={{ backgroundColor: 'var(--surface-card)', borderRadius: 16, padding: '2rem', maxWidth: 440, width: '100%' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
               <h3 style={{ margin: 0, fontSize: '1.3rem', fontWeight: 700 }}>Create New Team</h3>
-              <button onClick={() => setTeamModalOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#777184' }}>
+              <button onClick={() => setTeamModalOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)' }}>
                 <IconClose size={20} />
               </button>
             </div>
 
             {modalError && (
-              <div style={{ padding: '0.65rem 0.85rem', marginBottom: '1rem', backgroundColor: '#fee2e2', color: '#b91c1c', borderRadius: 8, fontSize: '0.85rem' }}>
+              <div style={{ padding: '0.65rem 0.85rem', marginBottom: '1rem', backgroundColor: 'var(--danger-soft)', color: 'var(--danger-text)', borderRadius: 8, fontSize: '0.85rem' }}>
                 {modalError}
               </div>
             )}
@@ -468,7 +473,7 @@ export default function TeamPage() {
                   placeholder="e.g. Frontend Engineering"
                   value={newTeamName}
                   onChange={e => setNewTeamName(e.target.value)}
-                  style={{ width: '100%', padding: '0.65rem', borderRadius: 8, border: '1px solid #d0c6d8', boxSizing: 'border-box' }}
+                  style={{ width: '100%', padding: '0.65rem', borderRadius: 8, border: '1px solid var(--border-color)', boxSizing: 'border-box' }}
                 />
               </div>
 
@@ -479,7 +484,7 @@ export default function TeamPage() {
                   placeholder="Purpose and team scope..."
                   value={newTeamDesc}
                   onChange={e => setNewTeamDesc(e.target.value)}
-                  style={{ width: '100%', padding: '0.65rem', borderRadius: 8, border: '1px solid #d0c6d8', boxSizing: 'border-box', fontFamily: 'inherit' }}
+                  style={{ width: '100%', padding: '0.65rem', borderRadius: 8, border: '1px solid var(--border-color)', boxSizing: 'border-box', fontFamily: 'inherit' }}
                 />
               </div>
 
@@ -487,14 +492,14 @@ export default function TeamPage() {
                 <button
                   type="button"
                   onClick={() => setTeamModalOpen(false)}
-                  style={{ padding: '0.65rem 1.25rem', borderRadius: 8, border: '1px solid #d0c6d8', background: '#fff', cursor: 'pointer' }}
+                  style={{ padding: '0.65rem 1.25rem', borderRadius: 8, border: '1px solid var(--border-color)', background: 'var(--surface-card)', cursor: 'pointer' }}
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={submitting}
-                  style={{ padding: '0.65rem 1.4rem', borderRadius: 8, border: 'none', background: '#26C6DA', color: '#1A1A2E', cursor: 'pointer', fontWeight: 700 }}
+                  style={{ padding: '0.65rem 1.4rem', borderRadius: 8, border: 'none', background: 'var(--accent)', color: 'var(--on-accent)', cursor: 'pointer', fontWeight: 700 }}
                 >
                   {submitting ? 'Creating...' : 'Create Team'}
                 </button>
@@ -502,6 +507,20 @@ export default function TeamPage() {
             </form>
           </div>
         </div>
+      )}
+      {removing && (
+        <Dialog
+          title="Remove from team?"
+          onClose={() => setRemoving(null)}
+          footer={<>
+            <button className="btn btn-secondary" onClick={() => setRemoving(null)} data-autofocus>Cancel</button>
+            <button className="btn btn-destructive" disabled={submitting} onClick={() => handleRemoveMember(removing.user_id)}>{submitting ? 'Removing…' : 'Remove'}</button>
+          </>}
+        >
+          <p style={{ margin: 0, fontSize: 13.5 }}>
+            {removing.user?.name ?? 'This user'} will lose access to this team&apos;s projects. Their existing tasks stay assigned.
+          </p>
+        </Dialog>
       )}
     </div>
   )
