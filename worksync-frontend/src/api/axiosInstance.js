@@ -14,4 +14,17 @@ const api = axios.create({
   headers: { 'Content-Type': 'application/json' },
 })
 
+// Session expired or revoked: send the user back to login instead of showing
+// failing pages. /auth/* calls are excluded — AuthContext handles those itself.
+api.interceptors.response.use(
+  response => response,
+  error => {
+    const url = error?.config?.url || ''
+    if (error?.response?.status === 401 && !url.startsWith('/auth/') && window.location.pathname !== '/login') {
+      window.location.assign('/login')
+    }
+    return Promise.reject(error)
+  },
+)
+
 export default api
