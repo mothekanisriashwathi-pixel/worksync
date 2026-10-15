@@ -60,9 +60,17 @@ app.include_router(notification_router.router)
 app.include_router(dashboard_router.router)
 @app.on_event("startup")
 def on_startup():
+    from app.core.config import check_production_settings, settings
     from app.core.database import Base, engine, SessionLocal
     import app.models  # noqa: F401
+
+    check_production_settings(settings)
     Base.metadata.create_all(bind=engine)
+
+    # Demo accounts have publicly known passwords (shown on the login page);
+    # never create or reset them outside local development.
+    if settings.APP_ENV != "development":
+        return
 
     # Seed demo accounts for the 3 distinct roles: Admin, Project Lead, Person (Member)
     from app.models.user import User, UserRole
