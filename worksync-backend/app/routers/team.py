@@ -362,5 +362,11 @@ def delete_team(
             detail="Team not found",
         )
 
+    if team.projects:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Delete or move this team's projects before deleting the team",
+        )
+
     db.delete(team)
     db.commit()
