@@ -56,6 +56,39 @@ def _format_time_ago(dt: datetime | None) -> str:
     return f"{int(diff // 86400)} days ago"
 
 
+def _pending_reviews(db: Session, project_ids: list[int] | None, limit: int | None = None) -> list[PendingReviewItem]:
+    """Submissions awaiting a decision (submitted or in review). project_ids=None means all projects."""
+    if project_ids is not None and not project_ids:
+        return []
+    query = (
+        db.query(Submission, Task.title, Project.name, User.name)
+        .join(Task, Task.id == Submission.task_id)
+        .join(Project, Project.id == Task.project_id)
+        .join(User, User.id == Submission.submitted_by)
+        .filter(Submission.status.in_([SubmissionStatus.PENDING, SubmissionStatus.IN_REVIEW]))
+        .order_by(Submission.submitted_at.desc())
+    )
+    if project_ids is not None:
+        query = query.filter(Task.project_id.in_(project_ids))
+    if limit:
+        query = query.limit(limit)
+    return [
+        PendingReviewItem(
+            id=s.id,
+            task_id=s.task_id,
+            task_title=task_title,
+            project_name=project_name,
+            submitted_by_id=s.submitted_by,
+            submitter_name=submitter_name,
+            status=s.status.value,
+            version=s.version,
+            comment=s.comment,
+            submitted_at=s.submitted_at.isoformat(),
+        )
+        for s, task_title, project_name, submitter_name in query.all()
+    ]
+
+
 @router.get("/summary", response_model=DashboardSummaryResponse)
 def get_dashboard_summary(
     view: str | None = Query(default=None, description="Requested dashboard role view"),
@@ -118,6 +151,25 @@ def get_dashboard_summary(
             if t.status == TaskStatus.COMPLETED and t.updated_at and t.updated_at >= week_ago
         ]
 
+        # Tasks whose latest submission came back with requested changes
+        latest_versions = (
+            db.query(Submission.task_id, func.max(Submission.version).label("v"))
+            .filter(Submission.submitted_by == current_user.id)
+            .group_by(Submission.task_id)
+            .subquery()
+        )
+        changes_requested_count = (
+            db.query(func.count(Submission.id))
+            .join(
+                latest_versions,
+                (Submission.task_id == latest_versions.c.task_id)
+                & (Submission.version == latest_versions.c.v),
+            )
+            .filter(Submission.status == SubmissionStatus.CHANGES_REQUESTED)
+            .scalar()
+            or 0
+        )
+
         metrics = [
             MetricCardData(
                 key="open_tasks",
@@ -127,11 +179,11 @@ def get_dashboard_summary(
                 color="primary",
             ),
             MetricCardData(
-                key="in_progress",
-                label="Tasks In Progress",
-                value=len(tasks_in_progress),
+                key="changes_requested",
+                label="Revisions Requested",
+                value=changes_requested_count,
                 icon="progress",
-                color="info",
+                color="danger",
             ),
             MetricCardData(
                 key="awaiting_review",
@@ -379,29 +431,7 @@ def get_dashboard_summary(
             )
 
         # Pending Reviews
-        pending_subs = (
-            db.query(Submission)
-            .join(Task, Task.id == Submission.task_id)
-            .filter(Task.project_id.in_(team_project_ids), Submission.status == SubmissionStatus.PENDING)
-            .order_by(Submission.submitted_at.desc())
-            .all()
-            if team_project_ids else []
-        )
-        task_title_map = {t.id: (t.title, project_lookup.get(t.project_id, ("", None))[0]) for t in team_tasks}
-        reviews_list = [
-            PendingReviewItem(
-                id=s.id,
-                task_id=s.task_id,
-                task_title=task_title_map.get(s.task_id, ("Task", ""))[0],
-                project_name=task_title_map.get(s.task_id, ("", "Project"))[1],
-                submitted_by_id=s.submitted_by,
-                submitter_name=user_lookup.get(s.submitted_by, "Team Member"),
-                file_path=s.file_path,
-                comment=s.comment,
-                submitted_at=s.submitted_at.isoformat() if s.submitted_at else now.isoformat(),
-            )
-            for s in pending_subs
-        ]
+        reviews_list = _pending_reviews(db, team_project_ids)
 
         # Upcoming Deadlines across team tasks
         upcoming_deadlines: list[TaskDashboardItem] = []
@@ -575,29 +605,7 @@ def get_dashboard_summary(
             )
 
         # Pending Approvals
-        pending_subs = (
-            db.query(Submission)
-            .join(Task, Task.id == Submission.task_id)
-            .filter(Task.project_id.in_(managed_project_ids), Submission.status == SubmissionStatus.PENDING)
-            .order_by(Submission.submitted_at.desc())
-            .all()
-            if managed_project_ids else []
-        )
-        task_title_map = {t.id: (t.title, project_lookup.get(t.project_id, ("", None))[0]) for t in managed_tasks}
-        reviews_list = [
-            PendingReviewItem(
-                id=s.id,
-                task_id=s.task_id,
-                task_title=task_title_map.get(s.task_id, ("Task", ""))[0],
-                project_name=task_title_map.get(s.task_id, ("", "Project"))[1],
-                submitted_by_id=s.submitted_by,
-                submitter_name=user_lookup.get(s.submitted_by, "Team Member"),
-                file_path=s.file_path,
-                comment=s.comment,
-                submitted_at=s.submitted_at.isoformat() if s.submitted_at else now.isoformat(),
-            )
-            for s in pending_subs
-        ]
+        reviews_list = _pending_reviews(db, managed_project_ids)
 
         upcoming_deadlines: list[TaskDashboardItem] = []
         for t in sorted(managed_tasks, key=lambda x: x.due_date or datetime.max):
@@ -782,27 +790,7 @@ def get_dashboard_summary(
                 )
 
         # Pending reviews system-wide
-        pending_subs = (
-            db.query(Submission)
-            .filter(Submission.status == SubmissionStatus.PENDING)
-            .order_by(Submission.submitted_at.desc())
-            .limit(10)
-            .all()
-        )
-        reviews_list = [
-            PendingReviewItem(
-                id=s.id,
-                task_id=s.task_id,
-                task_title=user_lookup.get(s.task_id, f"Task #{s.task_id}"),
-                project_name=None,
-                submitted_by_id=s.submitted_by,
-                submitter_name=user_lookup.get(s.submitted_by, "User"),
-                file_path=s.file_path,
-                comment=s.comment,
-                submitted_at=s.submitted_at.isoformat() if s.submitted_at else now.isoformat(),
-            )
-            for s in pending_subs
-        ]
+        reviews_list = _pending_reviews(db, None, limit=10)
 
         notifs = (
             db.query(Notification)
