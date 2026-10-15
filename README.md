@@ -195,6 +195,19 @@ SECRET_KEY=your_strong_secret_key_here
 ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=60
 APP_ENV=development
+# Optional
+GITHUB_TOKEN=            # raises GitHub API rate limits; never sent to the browser
+MAX_UPLOAD_MB=10         # submission attachment size limit
+```
+
+- `APP_ENV=development` seeds the demo accounts shown on the login page (and resets their passwords on every start). Any other value skips demo seeding and **requires** a real `SECRET_KEY` — the backend refuses to start with the built-in default.
+- Submission attachments are stored on local disk in `worksync-backend/uploads/submissions/` (git-ignored). Back this folder up with the database.
+
+#### Database migrations
+Run after installing and after every pull that adds a migration (safe on existing data):
+```bash
+cd worksync-backend
+python -m alembic upgrade head
 ```
 
 #### 2. Frontend (`worksync-frontend/.env`)
