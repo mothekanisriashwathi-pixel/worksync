@@ -97,6 +97,16 @@ def update_user(
 
     update_data = user_data.model_dump(exclude_unset=True)
 
+    # Prevent an admin from locking themselves (possibly the only admin) out.
+    if user.id == current_user.id and (
+        update_data.get("role", UserRole.ADMIN) != UserRole.ADMIN
+        or update_data.get("is_active") is False
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="You cannot remove your own admin role or deactivate your own account",
+        )
+
     for field, value in update_data.items():
         setattr(user, field, value)
 
